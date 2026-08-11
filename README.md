@@ -1,0 +1,2 @@
+# SMART-RETAIL-STAFF-SHIFT-SCHEDULING-AND-WORKFORCE-OPTIMIZATION-SYSTEM
+Smart Retail Staff Shift Scheduling &amp; Workforce Optimization is a workforce management system that automates staff scheduling based on employee availability, skills, workload, and customer demand. It reduces scheduling conflicts, prevents overstaffing and understaffing, optimizes labor costs, and improves productivity and customer service.
