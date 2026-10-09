@@ -11,8 +11,6 @@ primary key.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import jwt
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -34,7 +32,7 @@ bearer_scheme = HTTPBearer(auto_error=False, description="JWT access token")
 
 def get_current_user(
     request: Request,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(bearer_scheme),
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ) -> User:
     """Resolve the authenticated user from the ``Authorization`` header.
@@ -57,7 +55,9 @@ def get_current_user(
     try:
         payload = decode_access_token(credentials.credentials)
     except jwt.ExpiredSignatureError as exc:
-        raise UnauthorizedError("Your session has expired. Please sign in again.") from exc
+        raise UnauthorizedError(
+            "Your session has expired. Please sign in again."
+        ) from exc
     except jwt.PyJWTError as exc:
         raise UnauthorizedError("Invalid authentication token") from exc
 
@@ -152,7 +152,7 @@ def get_current_employee(
 def get_optional_employee(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> Optional[Employee]:
+) -> Employee | None:
     """Return the caller's employee record, or ``None`` for managers."""
     return db.get(Employee, current_user.id)
 

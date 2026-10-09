@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import secrets
 from functools import lru_cache
-from typing import List
 
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -55,7 +54,7 @@ class Settings(BaseSettings):
     # --- URLs / CORS ----------------------------------------------------
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
-    extra_cors_origins: List[str] = Field(default_factory=list)
+    extra_cors_origins: list[str] = Field(default_factory=list)
 
     # --- Bootstrap manager ---------------------------------------------
     manager_email: str = "manager@example.com"
@@ -108,7 +107,7 @@ class Settings(BaseSettings):
         return self.environment.strip().lower() == "production"
 
     @property
-    def cors_origins(self) -> List[str]:
+    def cors_origins(self) -> list[str]:
         """Browser origins permitted to call the API.
 
         Only the explicitly configured frontend origin (plus any extras) are

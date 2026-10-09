@@ -10,8 +10,8 @@ transaction — either both assignments move or neither does.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, datetime
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -55,14 +55,10 @@ def check_eligibility(
     requester_result = assignment_service.validate_assignment(
         db, target_shift, requester
     )
-    target_result = assignment_service.validate_assignment(
-        db, requester_shift, target
-    )
+    target_result = assignment_service.validate_assignment(db, requester_shift, target)
     blocking = [
         issue
-        for issue in (
-            requester_result["violations"] + target_result["violations"]
-        )
+        for issue in (requester_result["violations"] + target_result["violations"])
         if issue["blocking"]
     ]
     return {
@@ -79,7 +75,7 @@ def create_request(
     target_employee_id: str,
     requester_shift_id: str,
     target_shift_id: str,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> ShiftSwapRequest:
     """File a swap request after verifying ownership and running eligibility."""
     from app.core.errors import ConflictError, NotFoundError
@@ -190,7 +186,7 @@ def decide_request(
     swap: ShiftSwapRequest,
     reviewer: User,
     decision: str,
-    review_note: Optional[str] = None,
+    review_note: str | None = None,
 ) -> ShiftSwapRequest:
     """Approve (atomic exchange) or reject a pending swap request.
 
@@ -209,7 +205,7 @@ def decide_request(
     if decision == "rejected":
         swap.status = SwapStatus.REJECTED
         swap.reviewed_by = reviewer.id
-        swap.reviewed_at = datetime.now(timezone.utc)
+        swap.reviewed_at = datetime.now(UTC)
         swap.review_note = review_note
         db.flush()
         audit_service.log_action(
@@ -227,18 +223,14 @@ def decide_request(
 
     # Approval path — everything below must succeed together.
     try:
-        requester = db.scalar(
-            select(Employee).where(Employee.id == swap.requester_id)
-        )
+        requester = db.scalar(select(Employee).where(Employee.id == swap.requester_id))
         target = db.scalar(
             select(Employee).where(Employee.id == swap.target_employee_id)
         )
         requester_shift = db.scalar(
             select(Shift).where(Shift.id == swap.requester_shift_id)
         )
-        target_shift = db.scalar(
-            select(Shift).where(Shift.id == swap.target_shift_id)
-        )
+        target_shift = db.scalar(select(Shift).where(Shift.id == swap.target_shift_id))
         if requester is None or target is None:
             raise ConflictError("One of the employees no longer exists.")
         if requester_shift is None or target_shift is None:
@@ -248,8 +240,7 @@ def decide_request(
         old_target_link = _active_link(db, target_shift.id, target.id)
         if old_requester_link is None or old_target_link is None:
             raise ConflictError(
-                "Assignments changed since the request was filed; "
-                "re-file the swap."
+                "Assignments changed since the request was filed; " "re-file the swap."
             )
 
         # Fresh re-validation of both halves.
@@ -296,7 +287,7 @@ def decide_request(
         swap.status = SwapStatus.APPROVED
         swap.has_conflict = False
         swap.reviewed_by = reviewer.id
-        swap.reviewed_at = datetime.now(timezone.utc)
+        swap.reviewed_at = datetime.now(UTC)
         swap.review_note = review_note
         db.flush()
     except Exception:
@@ -366,8 +357,8 @@ def list_requests(
     db: Session,
     *,
     store_id: str,
-    employee_id: Optional[str] = None,
-    status: Optional[SwapStatus] = None,
+    employee_id: str | None = None,
+    status: SwapStatus | None = None,
 ) -> Sequence[ShiftSwapRequest]:
     """List swap requests touching a store, optionally filtered."""
     stmt = (

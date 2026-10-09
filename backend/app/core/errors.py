@@ -13,7 +13,7 @@ so Swagger examples stay consistent with real responses.
 
 from __future__ import annotations
 
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
@@ -22,7 +22,9 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 
-def success(data: Any = None, message: str = "", status_code: int = 200) -> Dict[str, Any]:
+def success(
+    data: Any = None, message: str = "", status_code: int = 200
+) -> dict[str, Any]:
     """Build a successful envelope.
 
     Args:
@@ -41,7 +43,7 @@ def failure(
     message: str,
     status_code: int = 400,
     data: Any = None,
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """Build a failure envelope.
 
     Args:

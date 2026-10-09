@@ -17,7 +17,6 @@ from __future__ import annotations
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Deque, Dict, Tuple
 
 
 class SlidingWindowRateLimiter:
@@ -34,7 +33,7 @@ class SlidingWindowRateLimiter:
             raise ValueError("limit and window_seconds must both be positive")
         self.limit = limit
         self.window_seconds = window_seconds
-        self._events: Dict[str, Deque[float]] = defaultdict(deque)
+        self._events: dict[str, deque[float]] = defaultdict(deque)
         self._lock = threading.Lock()
 
     def check(self, key: str) -> bool:
@@ -94,7 +93,9 @@ class _DisabledRateLimiter(SlidingWindowRateLimiter):
         return 0
 
 
-def build_limiter(enabled: bool, limit: int, window_seconds: int) -> SlidingWindowRateLimiter:
+def build_limiter(
+    enabled: bool, limit: int, window_seconds: int
+) -> SlidingWindowRateLimiter:
     """Create the limiter appropriate for the current configuration.
 
     Args:
@@ -123,7 +124,7 @@ def client_ip(request) -> str:
     Returns:
         An IP address string, or ``"unknown"`` when none can be determined.
     """
-    forwarded: Tuple[str, ...] = request.headers.get("x-forwarded-for", "").split(",")
+    forwarded: tuple[str, ...] = request.headers.get("x-forwarded-for", "").split(",")
     if forwarded and forwarded[0].strip():
         return forwarded[0].strip()
     if request.client and request.client.host:
@@ -139,10 +140,12 @@ def reset_limiter() -> None:
 
 #: Limiter instances keyed by ``"<scope>:<limit>:<window>"`` so tests and future
 #: endpoints can share a single construction path.
-_LIMITERS: Dict[str, SlidingWindowRateLimiter] = {}
+_LIMITERS: dict[str, SlidingWindowRateLimiter] = {}
 
 
-def get_limiter(scope: str, enabled: bool, limit: int, window_seconds: int) -> SlidingWindowRateLimiter:
+def get_limiter(
+    scope: str, enabled: bool, limit: int, window_seconds: int
+) -> SlidingWindowRateLimiter:
     """Return a cached limiter for ``scope``.
 
     Args:

@@ -13,10 +13,14 @@ class StoreCreate(ORMModel):
     """Payload for creating a store (manager only)."""
 
     name: str = Field(min_length=2, max_length=120)
-    code: str = Field(min_length=2, max_length=20, description="Short unique store code.")
+    code: str = Field(
+        min_length=2, max_length=20, description="Short unique store code."
+    )
     address: str | None = Field(default=None, max_length=255)
     phone: str | None = Field(default=None, max_length=40)
-    timezone: str = Field(default="UTC", description="IANA timezone name, e.g. Europe/London.")
+    timezone: str = Field(
+        default="UTC", description="IANA timezone name, e.g. Europe/London."
+    )
 
 
 class StoreUpdate(ORMModel):

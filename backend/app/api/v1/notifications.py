@@ -36,7 +36,9 @@ def unread_count(
 ) -> dict:
     """Return the caller's unread notification count."""
     result = notification_service.unread_count(db, user_id=current_user.id)
-    payload = result.model_dump(mode="json") if hasattr(result, "model_dump") else result
+    payload = (
+        result.model_dump(mode="json") if hasattr(result, "model_dump") else result
+    )
     return success(data=payload, message="Unread count")
 
 

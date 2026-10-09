@@ -90,7 +90,11 @@ def clock_in(
     result = attendance_service.clock_in(
         db, shift=shift, employee=employee, recorded_by=current_user, at=at
     )
-    record = result.get("attendance", result.get("record")) if isinstance(result, dict) else result
+    record = (
+        result.get("attendance", result.get("record"))
+        if isinstance(result, dict)
+        else result
+    )
     return success(data=_payload(record), message="Clocked in")
 
 
@@ -109,7 +113,11 @@ def clock_out(
     result = attendance_service.clock_out(
         db, shift=shift, employee=employee, recorded_by=current_user, at=at
     )
-    record = result.get("attendance", result.get("record")) if isinstance(result, dict) else result
+    record = (
+        result.get("attendance", result.get("record"))
+        if isinstance(result, dict)
+        else result
+    )
     return success(data=_payload(record), message="Clocked out")
 
 
@@ -124,9 +132,7 @@ def mark_absent(
 ) -> dict:
     """Mark an assignment absent (manager only; refused before shift end)."""
     _ = request
-    shift, employee = _resolve_shift_employee(
-        db, shift_id, employee_id, manager
-    )
+    shift, employee = _resolve_shift_employee(db, shift_id, employee_id, manager)
     record = attendance_service.mark_absent(
         db, shift=shift, employee=employee, marked_by=manager, notes=notes
     )

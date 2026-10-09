@@ -31,12 +31,16 @@ class AvailabilityCreate(BaseModel):
     effective_to: date | None = None
 
     @model_validator(mode="after")
-    def _validate_window(self) -> "AvailabilityCreate":
+    def _validate_window(self) -> AvailabilityCreate:
         """Reject a zero-length window; overnight windows remain valid."""
 
         if self.start_time == self.end_time:
             raise ValueError("start_time and end_time must differ")
-        if self.effective_from and self.effective_to and self.effective_to < self.effective_from:
+        if (
+            self.effective_from
+            and self.effective_to
+            and self.effective_to < self.effective_from
+        ):
             raise ValueError("effective_to must not precede effective_from")
         return self
 
@@ -113,10 +117,12 @@ class AttendanceCorrectionRequest(BaseModel):
     clock_in: datetime | None = None
     clock_out: datetime | None = None
     status: AttendanceStatus | None = None
-    reason: str = Field(min_length=5, max_length=500, description="Mandatory audit reason.")
+    reason: str = Field(
+        min_length=5, max_length=500, description="Mandatory audit reason."
+    )
 
     @model_validator(mode="after")
-    def _validate(self) -> "AttendanceCorrectionRequest":
+    def _validate(self) -> AttendanceCorrectionRequest:
         """Ensure the amendment is internally consistent."""
 
         if self.clock_in and self.clock_out and self.clock_out <= self.clock_in:
@@ -165,7 +171,7 @@ class LeaveRequestCreate(BaseModel):
     reason: str = Field(min_length=3, max_length=500)
 
     @model_validator(mode="after")
-    def _validate_dates(self) -> "LeaveRequestCreate":
+    def _validate_dates(self) -> LeaveRequestCreate:
         """Leave must span at least one day and not run backwards."""
 
         if self.end_date < self.start_date:
@@ -180,7 +186,7 @@ class LeaveDecision(BaseModel):
     review_note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
-    def _validate(self) -> "LeaveDecision":
+    def _validate(self) -> LeaveDecision:
         """Only terminal decisions are accepted here."""
 
         if self.decision not in (LeaveStatus.APPROVED, LeaveStatus.REJECTED):
@@ -234,7 +240,7 @@ class SwapDecision(BaseModel):
     review_note: str | None = Field(default=None, max_length=500)
 
     @model_validator(mode="after")
-    def _validate(self) -> "SwapDecision":
+    def _validate(self) -> SwapDecision:
         """Only terminal decisions are accepted here."""
 
         if self.decision not in (SwapStatus.APPROVED, SwapStatus.REJECTED):

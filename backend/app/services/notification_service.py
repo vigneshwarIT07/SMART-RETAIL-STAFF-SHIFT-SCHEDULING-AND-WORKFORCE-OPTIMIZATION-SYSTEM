@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from app.schemas.operations import UnreadCount
 def _utcnow() -> datetime:
     """Current timezone-aware UTC time."""
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def create_notification(
@@ -37,7 +37,9 @@ def create_notification(
     """
 
     if dedupe_key:
-        existing = db.scalar(select(Notification).where(Notification.dedupe_key == dedupe_key))
+        existing = db.scalar(
+            select(Notification).where(Notification.dedupe_key == dedupe_key)
+        )
         if existing is not None:
             return existing
     notification = Notification(
@@ -121,7 +123,9 @@ def unread_count(db: Session, *, user_id: str) -> UnreadCount:
     return UnreadCount(unread=int(total or 0))
 
 
-def mark_read(db: Session, *, user_id: str, notification_id: str) -> Notification | None:
+def mark_read(
+    db: Session, *, user_id: str, notification_id: str
+) -> Notification | None:
     """Mark one notification read; returns None when it is not ours."""
 
     notification = db.scalar(

@@ -11,8 +11,8 @@ from app.core.deps import (
     assert_employee_visible,
     get_current_user,
     get_managed_store_id,
+    require_manager,
 )
-from app.core.deps import require_manager
 from app.core.errors import NotFoundError, success
 from app.core.rate_limit import client_ip
 from app.db.session import get_db
@@ -46,9 +46,11 @@ def _shift_payload(db: Session, shift: Shift) -> dict:
                 "employee_id": row.employee_id,
                 "employee_name": user.full_name if user else None,
                 "employee_number": emp.employee_number if emp else None,
-                "status": row.status.value
-                if hasattr(row.status, "value")
-                else str(row.status),
+                "status": (
+                    row.status.value
+                    if hasattr(row.status, "value")
+                    else str(row.status)
+                ),
                 "assigned_at": row.assigned_at,
                 "is_auto_assigned": row.is_auto_assigned,
                 "notes": row.notes,
@@ -63,9 +65,9 @@ def _shift_payload(db: Session, shift: Shift) -> dict:
         "role_required": shift.role_required,
         "required_skill": shift.required_skill,
         "required_employees": shift.required_employees,
-        "status": shift.status.value
-        if hasattr(shift.status, "value")
-        else str(shift.status),
+        "status": (
+            shift.status.value if hasattr(shift.status, "value") else str(shift.status)
+        ),
         "notes": shift.notes,
         "created_by": shift.created_by,
         "published_at": shift.published_at,
@@ -98,9 +100,7 @@ def list_shifts(
         status=status,
         role=role,
     )
-    return success(
-        data=[_shift_payload(db, s) for s in shifts], message="Shifts"
-    )
+    return success(data=[_shift_payload(db, s) for s in shifts], message="Shifts")
 
 
 @router.post("", status_code=201)
@@ -119,7 +119,10 @@ def create_shift(
     if store_row is None:
         raise NotFoundError("Store not found")
     shift = shift_service.create_shift(
-        db, store=store_row, manager=manager, payload=payload,
+        db,
+        store=store_row,
+        manager=manager,
+        payload=payload,
         ip=client_ip(request),
     )
     return success(
@@ -141,12 +144,17 @@ def bulk_create_shifts(
     if store_row is None:
         raise NotFoundError("Store not found")
     created = shift_service.bulk_create_shifts(
-        db, store=store_row, manager=manager, payload=payload,
+        db,
+        store=store_row,
+        manager=manager,
+        payload=payload,
         ip=client_ip(request),
     )
     return success(
-        data={"created": [_shift_payload(db, s) for s in created],
-              "count": len(created)},
+        data={
+            "created": [_shift_payload(db, s) for s in created],
+            "count": len(created),
+        },
         message=f"{len(created)} shift(s) created",
         status_code=201,
     )
@@ -252,9 +260,7 @@ def list_shift_assignments(
     shift = shift_service.get_shift(
         db, store_id=current_user.store_id, shift_id=shift_id
     )
-    return success(
-        data=_shift_payload(db, shift)["assignments"], message="Assignments"
-    )
+    return success(data=_shift_payload(db, shift)["assignments"], message="Assignments")
 
 
 @router.post("/assignments/validate")
@@ -299,20 +305,26 @@ def assign_employee(
         raise NotFoundError("Employee not found")
     assert_employee_visible(employee, manager)
     assignment = assignment_service.assign_employee(
-        db, shift, employee, assigned_by=manager,
-        notes=payload.notes, force=payload.force,
+        db,
+        shift,
+        employee,
+        assigned_by=manager,
+        notes=payload.notes,
+        force=payload.force,
     )
     return success(
         data={
             "id": assignment.id,
             "shift_id": assignment.shift_id,
             "employee_id": assignment.employee_id,
-            "status": assignment.status.value
-            if hasattr(assignment.status, "value")
-            else str(assignment.status),
-            "assigned_at": assignment.assigned_at.isoformat()
-            if assignment.assigned_at
-            else None,
+            "status": (
+                assignment.status.value
+                if hasattr(assignment.status, "value")
+                else str(assignment.status)
+            ),
+            "assigned_at": (
+                assignment.assigned_at.isoformat() if assignment.assigned_at else None
+            ),
             "is_auto_assigned": assignment.is_auto_assigned,
         },
         message="Employee assigned",

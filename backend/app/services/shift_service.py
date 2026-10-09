@@ -9,7 +9,7 @@ the next calendar day.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
@@ -49,13 +49,13 @@ def shift_interval(store: Store, shift: Shift) -> tuple[datetime, datetime]:
 
         end_day = shift.shift_date + timedelta(days=1)
     end_local = datetime.combine(end_day, shift.end_time, tzinfo=tz)
-    return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
+    return start_local.astimezone(UTC), end_local.astimezone(UTC)
 
 
 def utcnow() -> datetime:
     """Current timezone-aware UTC time."""
 
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def get_shift(db: Session, *, store_id: str, shift_id: str) -> Shift:
@@ -89,13 +89,16 @@ def list_shifts(
         stmt = stmt.where(Shift.status == status)
     if role:
         stmt = stmt.where(Shift.role_required == role)
-    return list(
-        db.scalars(stmt.order_by(Shift.shift_date, Shift.start_time)).all()
-    )
+    return list(db.scalars(stmt.order_by(Shift.shift_date, Shift.start_time)).all())
 
 
 def create_shift(
-    db: Session, *, store: Store, manager: User, payload: ShiftCreate, ip: str | None = None
+    db: Session,
+    *,
+    store: Store,
+    manager: User,
+    payload: ShiftCreate,
+    ip: str | None = None,
 ) -> Shift:
     """Create one shift slot; duplicate slots are rejected with a 409."""
 
@@ -156,7 +159,9 @@ def bulk_create_shifts(
             publish=payload.publish,
         )
         try:
-            created.append(create_shift(db, store=store, manager=manager, payload=candidate, ip=ip))
+            created.append(
+                create_shift(db, store=store, manager=manager, payload=candidate, ip=ip)
+            )
         except ConflictError:
             continue
     return created
@@ -216,7 +221,10 @@ def cancel_shift(
 
     shift.status = ShiftStatus.CANCELLED
     for assignment in shift.assignments:
-        if assignment.status not in (AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW):
+        if assignment.status not in (
+            AssignmentStatus.CANCELLED,
+            AssignmentStatus.NO_SHOW,
+        ):
             assignment.status = AssignmentStatus.CANCELLED
             assignment.cancelled_at = utcnow()
             assignment.cancelled_reason = f"Shift cancelled: {reason}"
@@ -268,17 +276,22 @@ def publish_shifts(
     return published
 
 
-def delete_shift(db: Session, *, shift: Shift, manager: User, ip: str | None = None) -> None:
+def delete_shift(
+    db: Session, *, shift: Shift, manager: User, ip: str | None = None
+) -> None:
     """Delete a draft shift that has no active assignments."""
 
     from app.models.enums import AssignmentStatus
 
     if shift.status != ShiftStatus.DRAFT:
-        raise ConflictError("Only draft shifts can be deleted; cancel the shift instead.")
+        raise ConflictError(
+            "Only draft shifts can be deleted; cancel the shift instead."
+        )
     active = sum(
         1
         for assignment in shift.assignments
-        if assignment.status not in (AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW)
+        if assignment.status
+        not in (AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW)
     )
     if active > 0:
         raise ConflictError("Cannot delete a shift that has assigned employees.")
@@ -296,7 +309,9 @@ def delete_shift(db: Session, *, shift: Shift, manager: User, ip: str | None = N
     db.flush()
 
 
-def employee_display_name(db: Session, employee_id: str) -> tuple[str | None, str | None]:
+def employee_display_name(
+    db: Session, employee_id: str
+) -> tuple[str | None, str | None]:
     """Return ``(full_name, employee_number)`` for response enrichment."""
 
     row = db.scalars(select(Employee).where(Employee.id == employee_id)).first()

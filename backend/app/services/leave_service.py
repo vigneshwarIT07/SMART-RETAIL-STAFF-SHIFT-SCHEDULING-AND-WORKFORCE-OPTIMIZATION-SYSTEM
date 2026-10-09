@@ -11,8 +11,8 @@ the roster never shows someone as scheduled while on leave.
 from __future__ import annotations
 
 import json
-from datetime import date
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, date
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -60,7 +60,7 @@ def file_request(
     start_date: date,
     end_date: date,
     leave_type,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> LeaveRequest:
     """File a leave request, flagging conflicts with scheduled shifts."""
     from app.core.errors import ConflictError
@@ -69,9 +69,7 @@ def file_request(
         raise ConflictError("Leave end date cannot be before the start date.")
     clashes = overlapping_shifts(db, employee.id, start_date, end_date)
     details = (
-        json.dumps({"overlapping_shifts": [s.id for s in clashes]})
-        if clashes
-        else None
+        json.dumps({"overlapping_shifts": [s.id for s in clashes]}) if clashes else None
     )
     request = LeaveRequest(
         employee_id=employee.id,
@@ -115,7 +113,7 @@ def decide_request(
     request: LeaveRequest,
     reviewer: User,
     decision: str,
-    review_note: Optional[str] = None,
+    review_note: str | None = None,
 ) -> LeaveRequest:
     """Approve or reject a pending request (explicit conflict resolution).
 
@@ -158,15 +156,17 @@ def decide_request(
         request.status = LeaveStatus.REJECTED
 
     request.reviewed_by = reviewer.id
-    from datetime import datetime, timezone
+    from datetime import datetime
 
-    request.reviewed_at = datetime.now(timezone.utc)
+    request.reviewed_at = datetime.now(UTC)
     request.review_note = review_note
     db.flush()
 
     audit_service.log_action(
         db,
-        action=AuditAction.APPROVAL if decision == "approved" else AuditAction.REJECTION,
+        action=(
+            AuditAction.APPROVAL if decision == "approved" else AuditAction.REJECTION
+        ),
         entity_type="leave_request",
         entity_id=request.id,
         user_id=reviewer.id,
@@ -178,9 +178,7 @@ def decide_request(
 
     from app.models.user import User as _User
 
-    employee_user = db.scalar(
-        _select(_User).where(_User.id == request.employee_id)
-    )
+    employee_user = db.scalar(_select(_User).where(_User.id == request.employee_id))
     if employee_user is not None:
         notification_service.create_notification(
             db,
@@ -225,8 +223,8 @@ def list_requests(
     db: Session,
     *,
     store_id: str,
-    employee_id: Optional[str] = None,
-    status: Optional[LeaveStatus] = None,
+    employee_id: str | None = None,
+    status: LeaveStatus | None = None,
 ) -> Sequence[LeaveRequest]:
     """List leave requests of a store, optionally filtered."""
     stmt = (

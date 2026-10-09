@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy import select
@@ -47,9 +47,11 @@ def _user_payload(user: User) -> dict:
                 "id": employee.id,
                 "employee_number": employee.employee_number,
                 "full_name": user.full_name,
-                "skill_level": employee.skill_level.value
-                if hasattr(employee.skill_level, "value")
-                else str(employee.skill_level),
+                "skill_level": (
+                    employee.skill_level.value
+                    if hasattr(employee.skill_level, "value")
+                    else str(employee.skill_level)
+                ),
             }
             if employee is not None
             else None
@@ -219,5 +221,5 @@ def logout(
         store_id=current_user.store_id,
         ip_address=client_ip(request),
     )
-    _ = datetime.now(timezone.utc)
+    _ = datetime.now(UTC)
     return success(message="Logged out")

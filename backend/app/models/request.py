@@ -12,16 +12,18 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
-    JSON,
     String,
     Text,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -49,9 +51,12 @@ class LeaveRequest(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     employee_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    employee: Mapped["Employee"] = relationship(lazy="joined")
+    employee: Mapped[Employee] = relationship(lazy="joined")
 
     leave_type: Mapped[LeaveType] = mapped_column(
         SAEnum(LeaveType, name="leave_type", native_enum=False, length=20),
@@ -119,28 +124,36 @@ class ShiftSwapRequest(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
 
     requester_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    requester: Mapped["Employee"] = relationship(foreign_keys=[requester_id], lazy="joined")
+    requester: Mapped[Employee] = relationship(
+        foreign_keys=[requester_id], lazy="joined"
+    )
 
     target_employee_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    target_employee: Mapped["Employee"] = relationship(
+    target_employee: Mapped[Employee] = relationship(
         foreign_keys=[target_employee_id], lazy="joined"
     )
 
     requester_shift_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("shifts.id", ondelete="CASCADE"), nullable=False
     )
-    requester_shift: Mapped["Shift"] = relationship(
+    requester_shift: Mapped[Shift] = relationship(
         foreign_keys=[requester_shift_id], lazy="joined"
     )
 
     target_shift_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("shifts.id", ondelete="CASCADE"), nullable=False
     )
-    target_shift: Mapped["Shift"] = relationship(
+    target_shift: Mapped[Shift] = relationship(
         foreign_keys=[target_shift_id], lazy="joined"
     )
 

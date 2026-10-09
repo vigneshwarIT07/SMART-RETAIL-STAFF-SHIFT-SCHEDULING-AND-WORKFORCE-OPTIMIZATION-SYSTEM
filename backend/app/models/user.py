@@ -8,17 +8,19 @@ a ``store``; a manager is bound to exactly one store through
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     String,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -41,7 +43,9 @@ class Store(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    code: Mapped[str] = mapped_column(String(20), nullable=False, unique=True, index=True)
+    code: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True, index=True
+    )
     address: Mapped[str | None] = mapped_column(String(255))
     phone: Mapped[str | None] = mapped_column(String(30))
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
@@ -56,10 +60,10 @@ class Store(Base):
         onupdate=func.now(),
     )
 
-    users: Mapped[list["User"]] = relationship(
+    users: Mapped[list[User]] = relationship(
         back_populates="store", cascade="all, delete-orphan"
     )
-    employees: Mapped[list["Employee"]] = relationship(
+    employees: Mapped[list[Employee]] = relationship(
         back_populates="store", cascade="all, delete-orphan"
     )
 
@@ -94,7 +98,10 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
 
     store_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("stores.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     store: Mapped[Store] = relationship(back_populates="users")
 
@@ -109,7 +116,7 @@ class User(Base):
         onupdate=func.now(),
     )
 
-    employee: Mapped["Employee | None"] = relationship(
+    employee: Mapped[Employee | None] = relationship(
         back_populates="user",
         primaryjoin="User.id == foreign(Employee.id)",
         uselist=False,
@@ -121,9 +128,9 @@ class User(Base):
         """True when this account holds the manager role."""
         return self.role == UserRole.MANAGER
 
-    def touch_login(self) -> "User":
+    def touch_login(self) -> User:
         """Record the current time as the last successful login."""
-        self.last_login_at = datetime.now(timezone.utc)
+        self.last_login_at = datetime.now(UTC)
         return self
 
     def __repr__(self) -> str:  # pragma: no cover - debugging aid

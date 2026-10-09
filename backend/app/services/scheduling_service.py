@@ -8,9 +8,9 @@ module never claims legal labour-law compliance.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -146,9 +146,7 @@ def fairness_report(
     end_date: date,
 ) -> list[dict]:
     """Shift-count and hour spread per employee across the window."""
-    employees = db.scalars(
-        select(Employee).where(Employee.store_id == store_id)
-    ).all()
+    employees = db.scalars(select(Employee).where(Employee.store_id == store_id)).all()
     rows: list[dict] = []
     for employee in employees:
         stmt = (
@@ -250,8 +248,7 @@ def calendar_weeks(
                 "status": link.status,
             }
             for link in links
-            if link.status
-            not in (AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW)
+            if link.status not in (AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW)
         ]
         count = len(assigned)
         by_day[shift.shift_date].append(

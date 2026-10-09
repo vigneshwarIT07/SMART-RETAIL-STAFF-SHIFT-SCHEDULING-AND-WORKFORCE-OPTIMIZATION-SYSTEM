@@ -23,9 +23,9 @@ by the caller so they stay visible.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
-from typing import Optional, Sequence
 
 from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
@@ -67,7 +67,7 @@ def _blocking(code: str) -> bool:
 
 def _utc_day_bounds(day: date) -> tuple[datetime, datetime]:
     """Return the UTC day bounds for a calendar date."""
-    start = datetime(day.year, day.month, day.day, tzinfo=timezone.utc)
+    start = datetime(day.year, day.month, day.day, tzinfo=UTC)
     return start, start + timedelta(days=1)
 
 
@@ -131,9 +131,7 @@ def consecutive_work_days(
     return streak
 
 
-def _interval(
-    db: Session, shift: Shift
-) -> tuple[datetime, datetime]:
+def _interval(db: Session, shift: Shift) -> tuple[datetime, datetime]:
     """UTC interval for a shift, loading its store for timezone handling."""
     store = db.scalar(select(Store).where(Store.id == shift.store_id))
     if store is None:  # pragma: no cover - corrupt data guard
@@ -154,9 +152,9 @@ def validate_assignment(
     employee: Employee,
     *,
     force: bool = False,
-    max_weekly_hours: Optional[int] = None,
-    min_rest_hours: Optional[int] = None,
-    max_consecutive_days: Optional[int] = None,
+    max_weekly_hours: int | None = None,
+    min_rest_hours: int | None = None,
+    max_consecutive_days: int | None = None,
 ) -> dict:
     """Validate assigning ``employee`` to ``shift``.
 
@@ -250,7 +248,9 @@ def validate_assignment(
         )
 
     # Rule 7 — weekly hours cap (warning; overtime is allowed but flagged).
-    cap = max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
+    cap = (
+        max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
+    )
     week_start = shift.shift_date - timedelta(days=shift.shift_date.weekday())
     projected = weekly_hours(db, employee.id, week_start) + Decimal(
         str(shift.duration_hours)
@@ -301,7 +301,9 @@ def validate_assignment(
         if max_consecutive_days is not None
         else settings.max_consecutive_work_days
     )
-    streak = consecutive_work_days(db, employee.id, shift.shift_date - timedelta(days=1))
+    streak = consecutive_work_days(
+        db, employee.id, shift.shift_date - timedelta(days=1)
+    )
     if streak + 1 > day_cap:
         add(
             "consecutive-days",
@@ -322,7 +324,7 @@ def assign_employee(
     employee: Employee,
     assigned_by: User,
     *,
-    notes: Optional[str] = None,
+    notes: str | None = None,
     force: bool = False,
     is_auto_assigned: bool = False,
 ) -> ShiftAssignment:
@@ -349,7 +351,7 @@ def assign_employee(
     if existing is not None:
         existing.status = AssignmentStatus.ASSIGNED
         existing.assigned_by = assigned_by.id
-        existing.assigned_at = datetime.now(timezone.utc)
+        existing.assigned_at = datetime.now(UTC)
         existing.cancelled_at = None
         existing.cancelled_reason = None
         existing.notes = notes
@@ -409,11 +411,11 @@ def unassign_employee(
     assignment: ShiftAssignment,
     removed_by: User,
     *,
-    reason: Optional[str] = None,
+    reason: str | None = None,
 ) -> ShiftAssignment:
     """Cancel an assignment, recording who removed it and why."""
     assignment.status = AssignmentStatus.CANCELLED
-    assignment.cancelled_at = datetime.now(timezone.utc)
+    assignment.cancelled_at = datetime.now(UTC)
     assignment.cancelled_reason = reason
     db.flush()
     shift_stmt = select(Shift).where(Shift.id == assignment.shift_id)
@@ -431,9 +433,7 @@ def unassign_employee(
     return assignment
 
 
-def list_assignments_for_shift(
-    db: Session, shift_id: str
-) -> Sequence[ShiftAssignment]:
+def list_assignments_for_shift(db: Session, shift_id: str) -> Sequence[ShiftAssignment]:
     """Return all assignments for a shift, active first."""
     stmt = (
         select(ShiftAssignment)
@@ -447,8 +447,8 @@ def list_assignments_for_employee(
     db: Session,
     employee_id: int,
     *,
-    start: Optional[date] = None,
-    end: Optional[date] = None,
+    start: date | None = None,
+    end: date | None = None,
     include_cancelled: bool = False,
 ) -> Sequence[ShiftAssignment]:
     """Return assignments for an employee, optionally within a date window."""
@@ -470,9 +470,7 @@ def list_assignments_for_employee(
     return db.scalars(stmt).all()
 
 
-def confirm_assignment(
-    db: Session, assignment: ShiftAssignment
-) -> ShiftAssignment:
+def confirm_assignment(db: Session, assignment: ShiftAssignment) -> ShiftAssignment:
     """Mark an assignment CONFIRMED (employee acknowledgement)."""
     if assignment.status == AssignmentStatus.ASSIGNED:
         assignment.status = AssignmentStatus.CONFIRMED

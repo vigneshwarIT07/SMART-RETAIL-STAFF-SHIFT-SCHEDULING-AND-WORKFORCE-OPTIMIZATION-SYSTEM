@@ -12,17 +12,19 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
-    JSON,
     Numeric,
     String,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -54,11 +56,16 @@ class Employee(Base):
         primary_key=True,
     )
 
-    employee_number: Mapped[str] = mapped_column(String(20), nullable=False, unique=True)
-    store_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True
+    employee_number: Mapped[str] = mapped_column(
+        String(20), nullable=False, unique=True
     )
-    store: Mapped["Store"] = relationship(back_populates="employees")
+    store_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("stores.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    store: Mapped[Store] = relationship(back_populates="employees")
 
     phone: Mapped[str | None] = mapped_column(String(30))
     address: Mapped[str | None] = mapped_column(String(255))
@@ -79,7 +86,9 @@ class Employee(Base):
     # Role tags this employee can cover, e.g. ["till", "keyholder", "stockroom"].
     skills: Mapped[list | None] = mapped_column(JSON)
 
-    contract_weekly_hours: Mapped[int] = mapped_column(Integer, nullable=False, default=40)
+    contract_weekly_hours: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=40
+    )
     hourly_rate: Mapped[float | None] = mapped_column(Numeric(10, 2))
 
     is_keyholder: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
@@ -93,7 +102,7 @@ class Employee(Base):
         onupdate=func.now(),
     )
 
-    user: Mapped["User"] = relationship(back_populates="employee", viewonly=True)
+    user: Mapped[User] = relationship(back_populates="employee", viewonly=True)
 
     @property
     def is_active(self) -> bool:

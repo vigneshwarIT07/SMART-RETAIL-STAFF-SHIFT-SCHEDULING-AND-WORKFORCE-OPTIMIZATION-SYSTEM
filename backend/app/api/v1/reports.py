@@ -179,5 +179,7 @@ def export_report(
     return Response(
         content=payload["csv_text"],
         media_type="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{payload["filename"]}"'},
+        headers={
+            "Content-Disposition": f'attachment; filename="{payload["filename"]}"'
+        },
     )

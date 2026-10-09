@@ -13,8 +13,8 @@ which makes them straightforward to unit test.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 import bcrypt
 import jwt
@@ -76,8 +76,8 @@ def create_access_token(
     subject: str,
     role: str,
     store_id: str,
-    expires_minutes: Optional[int] = None,
-    extra_claims: Optional[Dict[str, Any]] = None,
+    expires_minutes: int | None = None,
+    extra_claims: dict[str, Any] | None = None,
 ) -> str:
     """Create a signed JWT for an authenticated user.
 
@@ -95,13 +95,13 @@ def create_access_token(
     Returns:
         An encoded JWT string.
     """
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     lifetime = (
         expires_minutes
         if expires_minutes is not None
         else settings.access_token_expire_minutes
     )
-    payload: Dict[str, Any] = {
+    payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
         "store_id": store_id,
@@ -110,10 +110,12 @@ def create_access_token(
     }
     if extra_claims:
         payload.update(extra_claims)
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    return jwt.encode(
+        payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm
+    )
 
 
-def decode_access_token(token: str) -> Dict[str, Any]:
+def decode_access_token(token: str) -> dict[str, Any]:
     """Decode and verify a JWT.
 
     Args:

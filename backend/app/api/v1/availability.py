@@ -28,9 +28,7 @@ def _payload(row) -> dict:
     return AvailabilityResponse.model_validate(row).model_dump(mode="json")
 
 
-def _resolve_employee(
-    db: Session, employee_id: str, current_user: User
-) -> Employee:
+def _resolve_employee(db: Session, employee_id: str, current_user: User) -> Employee:
     employee = db.get(Employee, employee_id)
     if employee is None:
         raise NotFoundError("Employee not found")
@@ -46,7 +44,9 @@ def list_availability(
 ) -> dict:
     """List one employee's availability entries."""
     employee = _resolve_employee(db, employee_id, current_user)
-    rows = availability_service.list_availability(db, employee=employee, user=current_user)
+    rows = availability_service.list_availability(
+        db, employee=employee, user=current_user
+    )
     return success(data=[_payload(r) for r in rows], message="Availability")
 
 

@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import csv
 import io
+from collections.abc import Iterable, Sequence
 from datetime import date, timedelta
-from typing import Any, Iterable, Sequence
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -38,9 +39,7 @@ def working_hours_report(
     end_date: date,
 ) -> list[dict]:
     """Scheduled vs actually-worked hours per employee for the window."""
-    employees = db.scalars(
-        select(Employee).where(Employee.store_id == store_id)
-    ).all()
+    employees = db.scalars(select(Employee).where(Employee.store_id == store_id)).all()
     rows: list[dict] = []
     for employee in employees:
         shift_stmt = (
@@ -145,9 +144,7 @@ def store_summary(
     end_date: date,
 ) -> dict:
     """One compact summary object for the manager dashboard and reports page."""
-    employees = db.scalars(
-        select(Employee).where(Employee.store_id == store_id)
-    ).all()
+    employees = db.scalars(select(Employee).where(Employee.store_id == store_id)).all()
     active_employees = [emp for emp in employees if emp.is_active]
     total_shifts = db.scalar(
         select(func.count()).where(

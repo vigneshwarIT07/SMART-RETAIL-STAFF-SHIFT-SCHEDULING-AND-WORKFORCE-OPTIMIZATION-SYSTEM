@@ -13,20 +13,18 @@ re-validates every assignment inside one transaction.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from datetime import date, timedelta
 from decimal import Decimal
-from typing import Optional, Sequence
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models import (
-    AssignmentStatus,
     AuditAction,
     Employee,
     Shift,
-    ShiftAssignment,
     ShiftStatus,
     User,
 )
@@ -73,8 +71,8 @@ def generate_proposal(
     store_id: str,
     start_date: date,
     end_date: date,
-    employee_ids: Optional[Sequence[str]] = None,
-    max_weekly_hours: Optional[int] = None,
+    employee_ids: Sequence[str] | None = None,
+    max_weekly_hours: int | None = None,
 ) -> dict:
     """Build a scheduling proposal for the window without writing anything.
 
@@ -83,13 +81,21 @@ def generate_proposal(
     the UI can explain every suggestion.  ``unfillable`` lists shifts (or
     remaining slots) for which no eligible candidate exists, with reasons.
     """
-    cap = max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
+    cap = (
+        max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
+    )
     employees = _active_employees(db, store_id)
     if employee_ids is not None:
         wanted = set(employee_ids)
         employees = [emp for emp in employees if emp.id in wanted]
 
-    shifts = [s for s in _open_shifts(db, store_id=store_id, start_date=start_date, end_date=end_date) if _open_slots(db, s) > 0]
+    shifts = [
+        s
+        for s in _open_shifts(
+            db, store_id=store_id, start_date=start_date, end_date=end_date
+        )
+        if _open_slots(db, s) > 0
+    ]
 
     # Virtual week-hours ledger so proposals within one run respect the cap.
     week_hours: dict[tuple[str, date], Decimal] = {}
@@ -98,7 +104,9 @@ def generate_proposal(
         week_start = day - timedelta(days=day.weekday())
         key = (employee_id, week_start)
         if key not in week_hours:
-            week_hours[key] = assignment_service.weekly_hours(db, employee_id, week_start)
+            week_hours[key] = assignment_service.weekly_hours(
+                db, employee_id, week_start
+            )
         return week_hours[key]
 
     # Most-constrained shift first: fewest *valid* candidates.
@@ -125,7 +133,11 @@ def generate_proposal(
                 continue
             # Ledger cap check (weekly-hours is advisory, but the generator
             # treats the cap as a hard limit to keep proposals safe).
-            if ledger_hours(employee.id, shift.shift_date) + Decimal(str(shift.duration_hours)) > cap:
+            if (
+                ledger_hours(employee.id, shift.shift_date)
+                + Decimal(str(shift.duration_hours))
+                > cap
+            ):
                 continue
             # Virtual overlap check against proposals made in this run.
             new_start, new_end = _virtual_interval(db, shift)
@@ -213,7 +225,9 @@ def _unfillable_reason(ranked: list[dict]) -> str:
         "shift-closed": "Shift is closed to assignments.",
         "unavailable": "All candidates marked themselves unavailable.",
     }
-    return explanations.get(most_common, f"Blocked by '{most_common}' for all candidates.")
+    return explanations.get(
+        most_common, f"Blocked by '{most_common}' for all candidates."
+    )
 
 
 def apply_proposal(
@@ -223,8 +237,8 @@ def apply_proposal(
     proposals: Sequence[dict],
     approved_by: User,
     publish: bool = False,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
+    start_date: date | None = None,
+    end_date: date | None = None,
 ) -> dict:
     """Apply manager-confirmed proposals atomically.
 
@@ -285,4 +299,8 @@ def apply_proposal(
         details={"applied": len(applied), "publish": publish},
     )
     db.flush()
-    return {"applied": applied, "published": publish, "published_count": published_count}
+    return {
+        "applied": applied,
+        "published": publish,
+        "published_count": published_count,
+    }

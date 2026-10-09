@@ -10,7 +10,6 @@ from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.deps import (
-    get_current_employee,
     get_current_user,
     get_managed_store_id,
     paginate,
@@ -67,7 +66,10 @@ def create_employee(
     """Create an employee account (linked user + employee rows)."""
     store_id = get_managed_store_id(manager)
     user, employee = employee_service.create_employee(
-        db, store_id=store_id, payload=payload, created_by=manager,
+        db,
+        store_id=store_id,
+        payload=payload,
+        created_by=manager,
         ip=client_ip(request),
     )
     return success(
@@ -140,8 +142,12 @@ def update_employee(
 
         raise _NF3("Employee not found")
     user, employee = employee_service.update_employee(
-        db, user=user, employee=employee, payload=payload,
-        updated_by=current_user, ip=client_ip(request),
+        db,
+        user=user,
+        employee=employee,
+        payload=payload,
+        updated_by=current_user,
+        ip=client_ip(request),
     )
     return success(data=_payload(user, employee), message="Employee updated")
 
@@ -158,8 +164,10 @@ def deactivate_employee(
         db, store_id=get_managed_store_id(manager), employee_id=employee_id
     )
     user, employee = employee_service.deactivate_employee(
-        db, user=user, employee=employee, deactivated_by=manager,
+        db,
+        user=user,
+        employee=employee,
+        deactivated_by=manager,
         ip=client_ip(request),
     )
     return success(data=_payload(user, employee), message="Employee deactivated")
-

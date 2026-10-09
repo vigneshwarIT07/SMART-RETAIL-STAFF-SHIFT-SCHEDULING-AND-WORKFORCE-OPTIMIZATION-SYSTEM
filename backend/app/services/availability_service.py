@@ -13,10 +13,9 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import ConflictError, NotFoundError
 from app.models import Availability, Employee, User
-from app.models.enums import UserRole
+from app.models.enums import AuditAction, UserRole
 from app.schemas.operations import AvailabilityCreate, AvailabilityUpdate
 from app.services import audit_service
-from app.models.enums import AuditAction
 
 
 def _scope_check(employee: Employee, user: User) -> None:

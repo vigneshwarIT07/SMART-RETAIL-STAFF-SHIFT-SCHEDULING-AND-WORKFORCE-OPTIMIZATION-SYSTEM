@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import secrets
 from datetime import date
-from typing import Optional
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -27,7 +26,9 @@ def _generate_employee_number(db: Session) -> str:
     """Generate a unique ``EMP-XXXX`` number with a random suffix."""
     for _ in range(20):
         candidate = f"EMP-{secrets.randbelow(9000) + 1000}"
-        exists = db.scalar(select(Employee).where(Employee.employee_number == candidate))
+        exists = db.scalar(
+            select(Employee).where(Employee.employee_number == candidate)
+        )
         if exists is None:
             return candidate
     raise ConflictError("Could not generate a unique employee number")
@@ -63,7 +64,7 @@ def create_employee(
     store_id: str,
     payload: EmployeeCreate,
     created_by: User,
-    ip: Optional[str] = None,
+    ip: str | None = None,
 ) -> tuple[User, Employee]:
     """Provision a login + employee record together (manager only)."""
     existing = db.scalar(select(User).where(User.email == payload.email.lower()))
@@ -142,8 +143,8 @@ def list_employees(
     db: Session,
     *,
     store_id: str,
-    search: Optional[str] = None,
-    status: Optional[str] = None,
+    search: str | None = None,
+    status: str | None = None,
     offset: int = 0,
     limit: int = 20,
 ) -> tuple[list[tuple[User, Employee]], int]:
@@ -186,7 +187,7 @@ def update_employee(
     employee: Employee,
     payload: EmployeeUpdate,
     updated_by: User,
-    ip: Optional[str] = None,
+    ip: str | None = None,
 ) -> tuple[User, Employee]:
     """Apply a partial update; role/store/status changes are manager-only."""
     from app.models.enums import EmployeeStatus
@@ -244,7 +245,7 @@ def deactivate_employee(
     user: User,
     employee: Employee,
     deactivated_by: User,
-    ip: Optional[str] = None,
+    ip: str | None = None,
 ) -> tuple[User, Employee]:
     """Deactivate both the login and the employee record together."""
     from app.models.enums import EmployeeStatus

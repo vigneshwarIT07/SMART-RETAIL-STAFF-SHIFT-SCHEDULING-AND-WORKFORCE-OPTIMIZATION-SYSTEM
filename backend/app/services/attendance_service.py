@@ -20,8 +20,8 @@ Policy (explicit so reviewers can audit it)
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta, timezone
-from typing import Optional, Sequence
+from collections.abc import Sequence
+from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -91,7 +91,7 @@ def clock_in(
     shift: Shift,
     employee: Employee,
     recorded_by: User,
-    at: Optional[datetime] = None,
+    at: datetime | None = None,
 ) -> dict:
     """Record clock-in; computes lateness server-side.
 
@@ -99,10 +99,12 @@ def clock_in(
     """
     from app.core.errors import ConflictError
 
-    now = at or datetime.now(timezone.utc)
+    now = at or datetime.now(UTC)
     if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-    record = get_or_create_record(db, shift=shift, employee=employee, recorded_by=recorded_by)
+        now = now.replace(tzinfo=UTC)
+    record = get_or_create_record(
+        db, shift=shift, employee=employee, recorded_by=recorded_by
+    )
     if record.clock_in is not None:
         raise ConflictError("Already clocked in for this shift.")
 
@@ -111,9 +113,7 @@ def clock_in(
     late = max(0, int((now - (shift_start + grace)).total_seconds() // 60))
     record.clock_in = now
     record.late_minutes = late
-    record.status = (
-        AttendanceStatus.LATE if late > 0 else AttendanceStatus.PRESENT
-    )
+    record.status = AttendanceStatus.LATE if late > 0 else AttendanceStatus.PRESENT
     db.flush()
     audit_service.log_action(
         db,
@@ -134,15 +134,17 @@ def clock_out(
     shift: Shift,
     employee: Employee,
     recorded_by: User,
-    at: Optional[datetime] = None,
+    at: datetime | None = None,
 ) -> dict:
     """Record clock-out; computes worked minutes server-side."""
     from app.core.errors import ConflictError
 
-    now = at or datetime.now(timezone.utc)
+    now = at or datetime.now(UTC)
     if now.tzinfo is None:
-        now = now.replace(tzinfo=timezone.utc)
-    record = get_or_create_record(db, shift=shift, employee=employee, recorded_by=recorded_by)
+        now = now.replace(tzinfo=UTC)
+    record = get_or_create_record(
+        db, shift=shift, employee=employee, recorded_by=recorded_by
+    )
     if record.clock_in is None:
         raise ConflictError("Cannot clock out before clocking in.")
     if record.clock_out is not None:
@@ -154,7 +156,9 @@ def clock_out(
     record.worked_minutes = int((now - record.clock_in).total_seconds() // 60)
     if record.status == AttendanceStatus.INCOMPLETE:
         record.status = (
-            AttendanceStatus.LATE if record.late_minutes > 0 else AttendanceStatus.PRESENT
+            AttendanceStatus.LATE
+            if record.late_minutes > 0
+            else AttendanceStatus.PRESENT
         )
     db.flush()
     audit_service.log_action(
@@ -176,7 +180,7 @@ def mark_absent(
     shift: Shift,
     employee: Employee,
     marked_by: User,
-    notes: Optional[str] = None,
+    notes: str | None = None,
 ) -> Attendance:
     """Explicit manager action marking an employee absent.
 
@@ -187,9 +191,13 @@ def mark_absent(
 
     _start, shift_end = _interval(db, shift)
     horizon = shift_end + timedelta(minutes=settings.attendance_grace_minutes)
-    if datetime.now(timezone.utc) < horizon:
-        raise ConflictError("Shift has not ended yet; absence cannot be recorded early.")
-    record = get_or_create_record(db, shift=shift, employee=employee, recorded_by=marked_by)
+    if datetime.now(UTC) < horizon:
+        raise ConflictError(
+            "Shift has not ended yet; absence cannot be recorded early."
+        )
+    record = get_or_create_record(
+        db, shift=shift, employee=employee, recorded_by=marked_by
+    )
     if record.clock_in is not None:
         raise ConflictError("Employee clocked in; correct the record instead.")
     record.status = AttendanceStatus.ABSENT
@@ -213,9 +221,9 @@ def correct_record(
     *,
     record: Attendance,
     manager: User,
-    clock_in: Optional[datetime] = None,
-    clock_out: Optional[datetime] = None,
-    status: Optional[AttendanceStatus] = None,
+    clock_in: datetime | None = None,
+    clock_out: datetime | None = None,
+    status: AttendanceStatus | None = None,
     reason: str,
 ) -> Attendance:
     """Manager correction with mandatory reason and before/after snapshot."""
@@ -244,7 +252,7 @@ def correct_record(
     record.was_corrected = True
     record.correction_reason = reason
     record.corrected_by = manager.id
-    record.corrected_at = datetime.now(timezone.utc)
+    record.corrected_at = datetime.now(UTC)
     db.flush()
     shift = db.scalar(select(Shift).where(Shift.id == record.shift_id))
     audit_service.log_action(
@@ -264,17 +272,16 @@ def missing_clockouts(
     db: Session,
     *,
     store_id: str,
-    older_than_minutes: Optional[int] = None,
+    older_than_minutes: int | None = None,
 ) -> list[dict]:
     """Records clocked in but never out, past the review grace period."""
-    from app.models.user import User as _User
 
     cutoff_minutes = (
         older_than_minutes
         if older_than_minutes is not None
         else settings.missing_clockout_grace_minutes
     )
-    horizon = datetime.now(timezone.utc) - timedelta(minutes=cutoff_minutes)
+    horizon = datetime.now(UTC) - timedelta(minutes=cutoff_minutes)
     stmt = (
         select(Attendance, Shift)
         .join(Shift, Shift.id == Attendance.shift_id)
@@ -289,10 +296,10 @@ def missing_clockouts(
     rows: list[dict] = []
     for record, shift in db.execute(stmt):
         user = db.scalar(_select_user(record.employee_id))
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         clock_in = record.clock_in
         if clock_in is not None and clock_in.tzinfo is None:
-            clock_in = clock_in.replace(tzinfo=timezone.utc)
+            clock_in = clock_in.replace(tzinfo=UTC)
         rows.append(
             {
                 "attendance_id": record.id,
@@ -301,11 +308,11 @@ def missing_clockouts(
                 "shift_id": shift.id,
                 "shift_date": shift.shift_date,
                 "clock_in": record.clock_in,
-                "hours_since_clock_in": round(
-                    (now - clock_in).total_seconds() / 3600, 1
-                )
-                if clock_in
-                else 0.0,
+                "hours_since_clock_in": (
+                    round((now - clock_in).total_seconds() / 3600, 1)
+                    if clock_in
+                    else 0.0
+                ),
             }
         )
     return rows
@@ -326,7 +333,12 @@ def summarize(
 ) -> dict:
     """Attendance roll-up for a store and date window."""
     stmt = (
-        select(Attendance.status, func.count(), func.coalesce(func.sum(Attendance.worked_minutes), 0), func.coalesce(func.avg(Attendance.late_minutes), 0))
+        select(
+            Attendance.status,
+            func.count(),
+            func.coalesce(func.sum(Attendance.worked_minutes), 0),
+            func.coalesce(func.avg(Attendance.late_minutes), 0),
+        )
         .join(Shift, Shift.id == Attendance.shift_id)
         .where(
             Shift.store_id == store_id,
@@ -335,7 +347,13 @@ def summarize(
         )
         .group_by(Attendance.status)
     )
-    counts = {AttendanceStatus.PRESENT: 0, AttendanceStatus.LATE: 0, AttendanceStatus.ABSENT: 0, AttendanceStatus.INCOMPLETE: 0, AttendanceStatus.EXCUSED: 0}
+    counts = {
+        AttendanceStatus.PRESENT: 0,
+        AttendanceStatus.LATE: 0,
+        AttendanceStatus.ABSENT: 0,
+        AttendanceStatus.INCOMPLETE: 0,
+        AttendanceStatus.EXCUSED: 0,
+    }
     total_minutes = 0
     late_total = 0.0
     late_rows = 0
@@ -366,10 +384,10 @@ def list_records(
     db: Session,
     *,
     store_id: str,
-    start: Optional[date] = None,
-    end: Optional[date] = None,
-    employee_id: Optional[str] = None,
-    status: Optional[AttendanceStatus] = None,
+    start: date | None = None,
+    end: date | None = None,
+    employee_id: str | None = None,
+    status: AttendanceStatus | None = None,
 ) -> Sequence[Attendance]:
     """Filtered attendance records for a store."""
     stmt = (

@@ -26,13 +26,15 @@ class ShiftCreate(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate_window(self) -> "ShiftCreate":
+    def _validate_window(self) -> ShiftCreate:
         """Reject a zero-length shift while still allowing overnight windows."""
 
         if self.start_time == self.end_time:
             raise ValueError("start_time and end_time must differ")
         if self.required_skill:
-            object.__setattr__(self, "required_skill", self.required_skill.strip().lower())
+            object.__setattr__(
+                self, "required_skill", self.required_skill.strip().lower()
+            )
         return self
 
 
@@ -65,7 +67,7 @@ class ShiftBulkCreate(BaseModel):
     publish: bool = False
 
     @model_validator(mode="after")
-    def _validate_days(self) -> "ShiftBulkCreate":
+    def _validate_days(self) -> ShiftBulkCreate:
         """Ensure every requested day falls inside a seven day window."""
 
         if not self.days:
@@ -284,7 +286,8 @@ class GenerationResult(BaseModel):
     unfillable: list[UnfillableShift]
     is_deterministic: bool = True
     applied: bool = Field(
-        default=False, description="Always False: proposals require explicit confirmation."
+        default=False,
+        description="Always False: proposals require explicit confirmation.",
     )
     summary: str
 
@@ -296,5 +299,6 @@ class ApplyGenerationRequest(BaseModel):
     end_date: date
     proposals: list[ProposedAssignment]
     publish: bool = Field(
-        default=False, description="Publish the affected shifts as part of the same action."
+        default=False,
+        description="Publish the affected shifts as part of the same action.",
     )

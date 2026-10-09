@@ -6,7 +6,7 @@ exactly once per process and every request shares the same configuration.
 
 from __future__ import annotations
 
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine

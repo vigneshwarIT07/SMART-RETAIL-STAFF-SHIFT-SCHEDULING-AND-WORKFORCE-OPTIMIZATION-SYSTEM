@@ -9,9 +9,9 @@ from app.core.deps import get_current_store, get_current_user, require_manager
 from app.core.errors import success
 from app.core.rate_limit import client_ip
 from app.db.session import get_db
+from app.models.enums import AuditAction
 from app.models.user import Store, User
 from app.schemas.store import StoreResponse, StoreUpdate
-from app.models.enums import AuditAction
 from app.services import audit_service
 
 router = APIRouter(prefix="/stores", tags=["stores"])

@@ -52,6 +52,7 @@ __all__ = [
     "Shift",
     "ShiftAssignment",
     "ShiftStatus",
+    "ShiftSwapRequest",
     "SkillLevel",
     "Store",
     "SwapStatus",

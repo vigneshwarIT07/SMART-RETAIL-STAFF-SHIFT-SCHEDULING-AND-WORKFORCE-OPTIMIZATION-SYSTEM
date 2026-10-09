@@ -43,8 +43,10 @@ def list_swaps(
     if current_user.role.value != "manager":
         scope_employee = current_user.id
     rows = swap_service.list_requests(
-        db, store_id=current_user.store_id,
-        employee_id=scope_employee, status=status,
+        db,
+        store_id=current_user.store_id,
+        employee_id=scope_employee,
+        status=status,
     )
     return success(data=jsonable_encoder(rows), message="Swap requests")
 
@@ -131,12 +133,13 @@ def decide_swap(
     _ = request
     swap = _resolve_swap(db, swap_id, manager)
     swap = swap_service.decide_request(
-        db, swap=swap, reviewer=manager,
-        decision=payload.decision, review_note=payload.review_note,
+        db,
+        swap=swap,
+        reviewer=manager,
+        decision=payload.decision,
+        review_note=payload.review_note,
     )
-    return success(
-        data=jsonable_encoder(swap), message=f"Swap {payload.decision}"
-    )
+    return success(data=jsonable_encoder(swap), message=f"Swap {payload.decision}")
 
 
 @router.post("/{swap_id}/cancel")

@@ -10,7 +10,6 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -18,6 +17,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -51,9 +53,12 @@ class Shift(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     store_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("stores.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    store: Mapped["Store"] = relationship()
+    store: Mapped[Store] = relationship()
 
     shift_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
     start_time: Mapped[time] = mapped_column(nullable=False)
@@ -85,7 +90,7 @@ class Shift(Base):
         onupdate=func.now(),
     )
 
-    assignments: Mapped[list["ShiftAssignment"]] = relationship(
+    assignments: Mapped[list[ShiftAssignment]] = relationship(
         back_populates="shift",
         cascade="all, delete-orphan",
         lazy="selectin",
@@ -133,19 +138,29 @@ class ShiftAssignment(Base):
     __table_args__ = (
         Index("ix_assignments_employee_status", "employee_id", "status"),
         Index("ix_assignments_shift_status", "shift_id", "status"),
-        UniqueConstraint("shift_id", "employee_id", name="uq_assignment_shift_employee"),
+        UniqueConstraint(
+            "shift_id", "employee_id", name="uq_assignment_shift_employee"
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     shift_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("shifts.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("shifts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     employee_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
 
     status: Mapped[AssignmentStatus] = mapped_column(
-        SAEnum(AssignmentStatus, name="assignment_status", native_enum=False, length=20),
+        SAEnum(
+            AssignmentStatus, name="assignment_status", native_enum=False, length=20
+        ),
         nullable=False,
         default=AssignmentStatus.ASSIGNED,
     )
@@ -159,10 +174,12 @@ class ShiftAssignment(Base):
     cancelled_reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
 
-    is_auto_assigned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_auto_assigned: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
 
-    shift: Mapped["Shift"] = relationship(back_populates="assignments")
-    employee: Mapped["Employee"] = relationship(lazy="joined")
+    shift: Mapped[Shift] = relationship(back_populates="assignments")
+    employee: Mapped[Employee] = relationship(lazy="joined")
 
     @property
     def is_active(self) -> bool:

@@ -21,7 +21,12 @@ from app.models.notification import Notification
 
 
 def render_assignment_email(
-    *, employee_name: str, shift_date: str, start_time: str, end_time: str, store_name: str
+    *,
+    employee_name: str,
+    shift_date: str,
+    start_time: str,
+    end_time: str,
+    store_name: str,
 ) -> tuple[str, str]:
     """Render the subject and body for a shift-assignment email."""
 
@@ -37,7 +42,12 @@ def render_assignment_email(
 
 
 def render_schedule_published_email(
-    *, employee_name: str, week_start: str, week_end: str, shift_count: int, store_name: str
+    *,
+    employee_name: str,
+    week_start: str,
+    week_end: str,
+    shift_count: int,
+    store_name: str,
 ) -> tuple[str, str]:
     """Render the subject and body for a schedule-published email."""
 
@@ -52,7 +62,12 @@ def render_schedule_published_email(
 
 
 def render_leave_decision_email(
-    *, employee_name: str, decision: str, start_date: str, end_date: str, review_note: str | None
+    *,
+    employee_name: str,
+    decision: str,
+    start_date: str,
+    end_date: str,
+    review_note: str | None,
 ) -> tuple[str, str]:
     """Render the subject and body for a leave-decision email."""
 
@@ -72,13 +87,17 @@ def render_swap_decision_email(
     """Render the subject and body for a swap-decision email."""
 
     subject = f"Shift swap {decision}"
-    body = f"Hi {employee_name},\n\nYour shift swap request ({details}) was {decision}.\n"
+    body = (
+        f"Hi {employee_name},\n\nYour shift swap request ({details}) was {decision}.\n"
+    )
     if review_note:
         body += f"Manager note: {review_note}\n"
     return subject, body
 
 
-def send_email(*, to_email: str, subject: str, body: str, timeout: int = 10) -> dict[str, Any]:
+def send_email(
+    *, to_email: str, subject: str, body: str, timeout: int = 10
+) -> dict[str, Any]:
     """Deliver one email, or honestly report that delivery is disabled.
 
     Returns a mapping with at least ``status`` which is one of
@@ -94,7 +113,9 @@ def send_email(*, to_email: str, subject: str, body: str, timeout: int = 10) -> 
             "error": "EMAIL_HOST is not configured; delivery is disabled.",
         }
     message = EmailMessage()
-    message["From"] = settings.email_from or settings.email_username or "no-reply@localhost"
+    message["From"] = (
+        settings.email_from or settings.email_username or "no-reply@localhost"
+    )
     message["To"] = to_email
     message["Subject"] = subject
     message.set_content(body)

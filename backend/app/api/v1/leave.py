@@ -58,8 +58,10 @@ def list_leave(
         _resolve_employee(db, employee_id, current_user)
         scope_employee = employee_id
     rows = leave_service.list_requests(
-        db, store_id=current_user.store_id,
-        employee_id=scope_employee, status=status,
+        db,
+        store_id=current_user.store_id,
+        employee_id=scope_employee,
+        status=status,
     )
     return success(data=jsonable_encoder(rows), message="Leave requests")
 
@@ -113,13 +115,14 @@ def decide_leave(
     req = _resolve_request(db, request_id, manager)
     _ = get_managed_store_id(manager)
     req = leave_service.decide_request(
-        db, request=req, reviewer=manager,
-        decision=payload.decision, review_note=payload.review_note,
+        db,
+        request=req,
+        reviewer=manager,
+        decision=payload.decision,
+        review_note=payload.review_note,
     )
     _ = client_ip
-    return success(
-        data=jsonable_encoder(req), message=f"Leave {payload.decision}"
-    )
+    return success(data=jsonable_encoder(req), message=f"Leave {payload.decision}")
 
 
 @router.post("/{request_id}/cancel")

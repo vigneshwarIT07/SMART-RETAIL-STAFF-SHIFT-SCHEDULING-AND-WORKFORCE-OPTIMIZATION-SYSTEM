@@ -7,15 +7,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
-    JSON,
     String,
     Text,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -50,12 +52,17 @@ class Notification(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     user_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    user: Mapped["User"] = relationship(lazy="joined")
+    user: Mapped[User] = relationship(lazy="joined")
 
     notification_type: Mapped[NotificationType] = mapped_column(
-        SAEnum(NotificationType, name="notification_type", native_enum=False, length=30),
+        SAEnum(
+            NotificationType, name="notification_type", native_enum=False, length=30
+        ),
         nullable=False,
         default=NotificationType.GENERAL,
     )
@@ -102,9 +109,12 @@ class AuditLog(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
 
     user_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+        String(36),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
-    user: Mapped["User | None"] = relationship(lazy="joined")
+    user: Mapped[User | None] = relationship(lazy="joined")
 
     store_id: Mapped[str | None] = mapped_column(
         String(36), ForeignKey("stores.id", ondelete="SET NULL"), nullable=True

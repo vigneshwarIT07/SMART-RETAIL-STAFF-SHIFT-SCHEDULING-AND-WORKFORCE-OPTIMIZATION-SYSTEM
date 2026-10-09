@@ -10,7 +10,6 @@ from sqlalchemy import (
     Boolean,
     Date,
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     Integer,
@@ -18,6 +17,9 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -52,15 +54,20 @@ class Availability(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     employee_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    employee: Mapped["Employee"] = relationship(lazy="joined")
+    employee: Mapped[Employee] = relationship(lazy="joined")
 
     weekday: Mapped[int] = mapped_column(Integer, nullable=False)
     start_time: Mapped[time] = mapped_column(nullable=False)
     end_time: Mapped[time] = mapped_column(nullable=False)
     availability_type: Mapped[AvailabilityType] = mapped_column(
-        SAEnum(AvailabilityType, name="availability_type", native_enum=False, length=20),
+        SAEnum(
+            AvailabilityType, name="availability_type", native_enum=False, length=20
+        ),
         nullable=False,
         default=AvailabilityType.AVAILABLE,
     )
@@ -93,9 +100,7 @@ class Availability(Base):
         return f"<Availability employee={self.employee_id} day={self.weekday}>"
 
 
-def _overlaps(
-    a_start: time, a_end: time, b_start: time, b_end: time
-) -> bool:
+def _overlaps(a_start: time, a_end: time, b_start: time, b_end: time) -> bool:
     """True when the half-open window ``[a_start, a_end)`` intersects ``[b_start, b_end)``."""
     return a_start < b_end and b_start < a_end
 
@@ -120,20 +125,28 @@ class Attendance(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     shift_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("shifts.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("shifts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     employee_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("employees.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
-    employee: Mapped["Employee"] = relationship(lazy="joined")
-    shift: Mapped["Shift"] = relationship(lazy="joined")
+    employee: Mapped[Employee] = relationship(lazy="joined")
+    shift: Mapped[Shift] = relationship(lazy="joined")
 
     clock_in: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     clock_out: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     attendance_date: Mapped[date] = mapped_column(Date, nullable=False)
 
     status: Mapped[AttendanceStatus] = mapped_column(
-        SAEnum(AttendanceStatus, name="attendance_status", native_enum=False, length=20),
+        SAEnum(
+            AttendanceStatus, name="attendance_status", native_enum=False, length=20
+        ),
         nullable=False,
         default=AttendanceStatus.INCOMPLETE,
     )
@@ -182,7 +195,10 @@ class AttendanceCorrection(Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     attendance_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("attendance.id", ondelete="CASCADE"), nullable=False, index=True
+        String(36),
+        ForeignKey("attendance.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
     )
     manager_id: Mapped[str] = mapped_column(
         String(36), ForeignKey("users.id", ondelete="SET NULL"), nullable=False
