@@ -33,6 +33,7 @@ const STATUS_STYLES = {
   available: 'success',
   unavailable: 'secondary',
   // Misc
+  overtime: 'warning',
   sent: 'success',
   failed: 'danger',
   disabled: 'secondary',

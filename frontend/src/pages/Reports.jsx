@@ -106,7 +106,7 @@ export default function Reports() {
                         <td>{r.employee_name} <small className="text-muted">({r.employee_number})</small></td>
                         <td>{r.scheduled_hours?.toFixed(1)} h</td>
                         <td>{r.contract_hours} h</td>
-                        <td>{r.overtime_warning ? <StatusBadge value="late" /> : <span className="text-muted small">ok</span>}</td>
+                        <td>{r.overtime_warning ? <StatusBadge value="overtime" /> : <span className="text-muted small">ok</span>}</td>
                       </tr>
                     ))}
                   </tbody>
