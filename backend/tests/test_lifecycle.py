@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from app.models import Employee
+from sqlalchemy import select
+
+from app.models import AssignmentStatus, Employee, ShiftAssignment
 from app.models.enums import NotificationType, ShiftStatus
 from app.schemas.scheduling import ShiftCreate
 from app.services import (
@@ -83,9 +85,7 @@ def test_email_renders_and_reports_disabled(db, store, manager):
     )
     assert "2026-10-12" in subject and "Alice" in body
     # No SMTP in the test environment: delivery must say disabled, never sent.
-    outcome = email_service.send_email(
-        to_email="alice@example.com", subject=subject, body=body
-    )
+    outcome = email_service.send_email(to_email="alice@example.com", subject=subject, body=body)
     assert outcome["status"] == "disabled"
     note = notification_service.create_notification(
         db,
@@ -94,16 +94,12 @@ def test_email_renders_and_reports_disabled(db, store, manager):
         title="Hello",
         body="World",
     )
-    result = email_service.deliver_notification(
-        db, note, to_email="manager@example.com"
-    )
+    result = email_service.deliver_notification(db, note, to_email="manager@example.com")
     assert result["status"] == "disabled"
     assert note.email_status == "disabled"
     # Already-sent rows are never re-sent on retry.
     note.email_status = "sent"
-    skipped = email_service.deliver_notification(
-        db, note, to_email="manager@example.com"
-    )
+    skipped = email_service.deliver_notification(db, note, to_email="manager@example.com")
     assert skipped.get("duplicate_skipped") is True
 
 
@@ -115,6 +111,51 @@ def test_api_notifications_roundtrip(client, manager_headers):
     assert "unread" in unread.json()["data"]
     read_all = client.post("/api/notifications/read-all", headers=manager_headers)
     assert read_all.status_code == 200
+
+
+def test_swap_back_reuses_cancelled_rows(db, store, manager, employee_user, employee2_user):
+    """Approving a swap over a previously-cancelled link must not 500."""
+    from app.services import assignment_service, swap_service
+
+    emp1 = db.get(Employee, employee_user.id)
+    emp2 = db.get(Employee, employee2_user.id)
+    s1 = _draft_shift(db, store, manager, start="09:00", end="13:00")
+    s2 = _draft_shift(db, store, manager, start="14:00", end="18:00")
+    assignment_service.assign_employee(db, s1, emp1, assigned_by=manager)
+    assignment_service.assign_employee(db, s2, emp2, assigned_by=manager)
+
+    first = swap_service.create_request(
+        db,
+        requester=emp1,
+        target_employee_id=emp2.id,
+        requester_shift_id=s1.id,
+        target_shift_id=s2.id,
+        reason="first swap",
+    )
+    first = swap_service.decide_request(db, swap=first, reviewer=manager, decision="approved")
+    assert first.status.value == "approved"
+
+    second = swap_service.create_request(
+        db,
+        requester=emp1,
+        target_employee_id=emp2.id,
+        requester_shift_id=s2.id,
+        target_shift_id=s1.id,
+        reason="swap back",
+    )
+    second = swap_service.decide_request(db, swap=second, reviewer=manager, decision="approved")
+    assert second.status.value == "approved"
+    db.flush()
+    assert (
+        db.scalar(
+            select(ShiftAssignment).where(
+                ShiftAssignment.shift_id == s1.id,
+                ShiftAssignment.employee_id == emp1.id,
+                ShiftAssignment.status == AssignmentStatus.ASSIGNED,
+            )
+        )
+        is not None
+    )
 
 
 def test_employees_cannot_see_draft_shifts(client, manager_headers, employee_headers):
