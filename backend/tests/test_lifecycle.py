@@ -83,7 +83,9 @@ def test_email_renders_and_reports_disabled(db, store, manager):
     )
     assert "2026-10-12" in subject and "Alice" in body
     # No SMTP in the test environment: delivery must say disabled, never sent.
-    outcome = email_service.send_email(to_email="alice@example.com", subject=subject, body=body)
+    outcome = email_service.send_email(
+        to_email="alice@example.com", subject=subject, body=body
+    )
     assert outcome["status"] == "disabled"
     note = notification_service.create_notification(
         db,
@@ -92,12 +94,16 @@ def test_email_renders_and_reports_disabled(db, store, manager):
         title="Hello",
         body="World",
     )
-    result = email_service.deliver_notification(db, note, to_email="manager@example.com")
+    result = email_service.deliver_notification(
+        db, note, to_email="manager@example.com"
+    )
     assert result["status"] == "disabled"
     assert note.email_status == "disabled"
     # Already-sent rows are never re-sent on retry.
     note.email_status = "sent"
-    skipped = email_service.deliver_notification(db, note, to_email="manager@example.com")
+    skipped = email_service.deliver_notification(
+        db, note, to_email="manager@example.com"
+    )
     assert skipped.get("duplicate_skipped") is True
 
 

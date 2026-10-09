@@ -46,7 +46,11 @@ def _shift_payload(db: Session, shift: Shift) -> dict:
                 "employee_id": row.employee_id,
                 "employee_name": user.full_name if user else None,
                 "employee_number": emp.employee_number if emp else None,
-                "status": (row.status.value if hasattr(row.status, "value") else str(row.status)),
+                "status": (
+                    row.status.value
+                    if hasattr(row.status, "value")
+                    else str(row.status)
+                ),
                 "assigned_at": row.assigned_at,
                 "is_auto_assigned": row.is_auto_assigned,
                 "notes": row.notes,
@@ -61,7 +65,9 @@ def _shift_payload(db: Session, shift: Shift) -> dict:
         "role_required": shift.role_required,
         "required_skill": shift.required_skill,
         "required_employees": shift.required_employees,
-        "status": (shift.status.value if hasattr(shift.status, "value") else str(shift.status)),
+        "status": (
+            shift.status.value if hasattr(shift.status, "value") else str(shift.status)
+        ),
         "notes": shift.notes,
         "created_by": shift.created_by,
         "published_at": shift.published_at,
@@ -122,7 +128,9 @@ def create_shift(
         payload=payload,
         ip=client_ip(request),
     )
-    return success(data=_shift_payload(db, shift), message="Shift created", status_code=201)
+    return success(
+        data=_shift_payload(db, shift), message="Shift created", status_code=201
+    )
 
 
 @router.post("/bulk", status_code=201)
@@ -162,7 +170,9 @@ def read_shift(
     db: Session = Depends(get_db),
 ) -> dict:
     """Return one shift with its assignments."""
-    shift = shift_service.get_shift(db, store_id=current_user.store_id, shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=current_user.store_id, shift_id=shift_id
+    )
     return success(data=_shift_payload(db, shift), message="Shift")
 
 
@@ -175,7 +185,9 @@ def update_shift(
     db: Session = Depends(get_db),
 ) -> dict:
     """Update a shift (cancelled shifts are immutable)."""
-    shift = shift_service.get_shift(db, store_id=get_managed_store_id(manager), shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=get_managed_store_id(manager), shift_id=shift_id
+    )
     shift = shift_service.update_shift(
         db, shift=shift, manager=manager, payload=payload, ip=client_ip(request)
     )
@@ -191,7 +203,9 @@ def cancel_shift(
     db: Session = Depends(get_db),
 ) -> dict:
     """Cancel a shift and release its active assignments."""
-    shift = shift_service.get_shift(db, store_id=get_managed_store_id(manager), shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=get_managed_store_id(manager), shift_id=shift_id
+    )
     shift = shift_service.cancel_shift(
         db, shift=shift, manager=manager, reason=reason, ip=client_ip(request)
     )
@@ -206,7 +220,9 @@ def delete_shift(
     db: Session = Depends(get_db),
 ) -> dict:
     """Delete a draft shift that has no active assignments."""
-    shift = shift_service.get_shift(db, store_id=get_managed_store_id(manager), shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=get_managed_store_id(manager), shift_id=shift_id
+    )
     shift_service.delete_shift(db, shift=shift, manager=manager, ip=client_ip(request))
     return success(message="Shift deleted")
 
@@ -244,7 +260,9 @@ def list_shift_assignments(
     db: Session = Depends(get_db),
 ) -> dict:
     """List assignments for one shift."""
-    shift = shift_service.get_shift(db, store_id=current_user.store_id, shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=current_user.store_id, shift_id=shift_id
+    )
     return success(data=_shift_payload(db, shift)["assignments"], message="Assignments")
 
 
@@ -255,12 +273,16 @@ def validate_assignment(
     db: Session = Depends(get_db),
 ) -> dict:
     """Preview assignment validation (blocking violations + warnings)."""
-    shift = shift_service.get_shift(db, store_id=current_user.store_id, shift_id=payload.shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=current_user.store_id, shift_id=payload.shift_id
+    )
     employee = db.get(Employee, payload.employee_id)
     if employee is None:
         raise NotFoundError("Employee not found")
     assert_employee_visible(employee, current_user)
-    result = assignment_service.validate_assignment(db, shift, employee, force=payload.force)
+    result = assignment_service.validate_assignment(
+        db, shift, employee, force=payload.force
+    )
     body = AssignmentValidationResult(
         valid=result["valid"],
         violations=result["violations"],
@@ -303,7 +325,9 @@ def assign_employee(
                 if hasattr(assignment.status, "value")
                 else str(assignment.status)
             ),
-            "assigned_at": (assignment.assigned_at.isoformat() if assignment.assigned_at else None),
+            "assigned_at": (
+                assignment.assigned_at.isoformat() if assignment.assigned_at else None
+            ),
             "is_auto_assigned": assignment.is_auto_assigned,
         },
         message="Employee assigned",
@@ -344,7 +368,10 @@ def confirm_assignment(
     assignment = db.get(ShiftAssignment, assignment_id)
     if assignment is None:
         raise NotFoundError("Assignment not found")
-    if current_user.role.value != "manager" and assignment.employee_id != current_user.id:
+    if (
+        current_user.role.value != "manager"
+        and assignment.employee_id != current_user.id
+    ):
         raise NotFoundError("Assignment not found")
     assignment = assignment_service.confirm_assignment(db, assignment)
     return success(message="Assignment confirmed")
@@ -361,7 +388,9 @@ def eligible_employees(
 
     from app.models.enums import EmployeeStatus
 
-    shift = shift_service.get_shift(db, store_id=get_managed_store_id(manager), shift_id=shift_id)
+    shift = shift_service.get_shift(
+        db, store_id=get_managed_store_id(manager), shift_id=shift_id
+    )
     candidates = list(
         db.scalars(
             select(Employee).where(

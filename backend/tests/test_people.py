@@ -33,11 +33,18 @@ def test_availability_crud_and_duplicate_rejected(db, store, manager, employee_u
         availability_service.create_availability(
             db, employee=emp, user=employee_user, payload=payload
         )
-    availability_service.delete_availability(db, row=row, employee=emp, user=employee_user)
-    assert availability_service.list_availability(db, employee=emp, user=employee_user) == []
+    availability_service.delete_availability(
+        db, row=row, employee=emp, user=employee_user
+    )
+    assert (
+        availability_service.list_availability(db, employee=emp, user=employee_user)
+        == []
+    )
 
 
-def test_availability_cross_employee_forbidden(db, store, manager, employee_user, employee2_user):
+def test_availability_cross_employee_forbidden(
+    db, store, manager, employee_user, employee2_user
+):
     emp2 = _emp(db, employee2_user)
     payload = AvailabilityCreate(weekday=2, start_time=time(9, 0), end_time=time(12, 0))
     # A plain employee cannot manage another employee's rows.
@@ -47,7 +54,9 @@ def test_availability_cross_employee_forbidden(db, store, manager, employee_user
         )
     db.rollback()
     # A manager of the same store can.
-    row = availability_service.create_availability(db, employee=emp2, user=manager, payload=payload)
+    row = availability_service.create_availability(
+        db, employee=emp2, user=manager, payload=payload
+    )
     assert row.employee_id == emp2.id
 
 
@@ -62,7 +71,9 @@ def test_employee_provisioning_and_deactivation(db, store, manager):
     assert user.is_active and emp.is_active
     # Duplicate email is rejected without touching the provisioned rows.
     with pytest.raises(ConflictError), db.begin_nested():
-        employee_service.create_employee(db, store_id=store.id, payload=payload, created_by=manager)
+        employee_service.create_employee(
+            db, store_id=store.id, payload=payload, created_by=manager
+        )
     user, emp = employee_service.deactivate_employee(
         db, user=user, employee=emp, deactivated_by=manager
     )
@@ -83,6 +94,8 @@ def test_api_employee_create_and_deactivate(client, manager_headers):
     )
     assert created.status_code == 201, created.text
     emp_id = created.json()["data"]["id"]
-    deactivated = client.post(f"/api/employees/{emp_id}/deactivate", headers=manager_headers)
+    deactivated = client.post(
+        f"/api/employees/{emp_id}/deactivate", headers=manager_headers
+    )
     assert deactivated.status_code == 200, deactivated.text
     assert deactivated.json()["data"]["status"] == "inactive"

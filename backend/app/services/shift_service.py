@@ -61,7 +61,9 @@ def utcnow() -> datetime:
 def get_shift(db: Session, *, store_id: str, shift_id: str) -> Shift:
     """Fetch one shift of this store or raise a 404 (never a 403)."""
 
-    shift = db.scalar(select(Shift).where(Shift.id == shift_id, Shift.store_id == store_id))
+    shift = db.scalar(
+        select(Shift).where(Shift.id == shift_id, Shift.store_id == store_id)
+    )
     if shift is None:
         raise NotFoundError("Shift not found")
     return shift
@@ -157,7 +159,9 @@ def bulk_create_shifts(
             publish=payload.publish,
         )
         try:
-            created.append(create_shift(db, store=store, manager=manager, payload=candidate, ip=ip))
+            created.append(
+                create_shift(db, store=store, manager=manager, payload=candidate, ip=ip)
+            )
         except ConflictError:
             continue
     return created
@@ -218,7 +222,9 @@ def cancel_shift(
     shift.status = ShiftStatus.CANCELLED
     # Query fresh rows: the in-memory shift.assignments collection may be
     # stale (already loaded as empty) when assign + cancel share a session.
-    links = db.scalars(select(ShiftAssignment).where(ShiftAssignment.shift_id == shift.id)).all()
+    links = db.scalars(
+        select(ShiftAssignment).where(ShiftAssignment.shift_id == shift.id)
+    ).all()
     for assignment in links:
         if assignment.status not in (
             AssignmentStatus.CANCELLED,
@@ -275,13 +281,17 @@ def publish_shifts(
     return published
 
 
-def delete_shift(db: Session, *, shift: Shift, manager: User, ip: str | None = None) -> None:
+def delete_shift(
+    db: Session, *, shift: Shift, manager: User, ip: str | None = None
+) -> None:
     """Delete a draft shift that has no active assignments."""
 
     from app.models.enums import AssignmentStatus
 
     if shift.status != ShiftStatus.DRAFT:
-        raise ConflictError("Only draft shifts can be deleted; cancel the shift instead.")
+        raise ConflictError(
+            "Only draft shifts can be deleted; cancel the shift instead."
+        )
     # Count from a fresh query for the same staleness reason as cancel_shift.
     active = (
         db.scalar(
@@ -312,7 +322,9 @@ def delete_shift(db: Session, *, shift: Shift, manager: User, ip: str | None = N
     db.flush()
 
 
-def employee_display_name(db: Session, employee_id: str) -> tuple[str | None, str | None]:
+def employee_display_name(
+    db: Session, employee_id: str
+) -> tuple[str | None, str | None]:
     """Return ``(full_name, employee_number)`` for response enrichment."""
 
     row = db.scalars(select(Employee).where(Employee.id == employee_id)).first()

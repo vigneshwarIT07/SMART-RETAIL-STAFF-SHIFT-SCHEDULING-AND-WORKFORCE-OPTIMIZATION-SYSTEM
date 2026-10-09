@@ -34,10 +34,14 @@ def read_calendar(
         # Employees must not see unpublished (draft) shifts in their calendar.
         for day in weeks:
             day["shifts"] = [
-                entry for entry in day["shifts"] if entry["shift"].status != ShiftStatus.DRAFT
+                entry
+                for entry in day["shifts"]
+                if entry["shift"].status != ShiftStatus.DRAFT
             ]
     return success(
-        data=jsonable_encoder({"start_date": start_date, "end_date": end_date, "days": weeks}),
+        data=jsonable_encoder(
+            {"start_date": start_date, "end_date": end_date, "days": weeks}
+        ),
         message="Calendar",
     )
 
