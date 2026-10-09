@@ -1,0 +1,219 @@
+// Retail Staff Shift Scheduling Platform — database diagram source.
+// Rendered independently (e.g. dbdiagram.io) and exported to er-diagram.png.
+// Matches backend/app/models/* exactly: UUID string PKs, 12 tables.
+
+Table stores {
+  id varchar(36) [pk]
+  name varchar(120) [not null]
+  code varchar(20) [unique, not null]
+  address varchar(255)
+  phone varchar(30)
+  timezone varchar(64)
+  is_active boolean [not null, default: true]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table users {
+  id varchar(36) [pk]
+  email varchar(255) [unique, not null]
+  hashed_password varchar(255) [not null]
+  full_name varchar(120) [not null]
+  role varchar(20) [not null, note: 'manager | employee']
+  is_active boolean [not null, default: true]
+  store_id varchar(36) [not null]
+  last_login_at datetime
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table employees {
+  id varchar(36) [pk, note: 'shares PK with users.id']
+  employee_number varchar(20) [unique, not null]
+  store_id varchar(36) [not null]
+  phone varchar(30)
+  address varchar(255)
+  date_of_birth date
+  hire_date date
+  skill_level varchar(20) [not null, note: 'junior | mid | senior']
+  status varchar(20) [not null, note: 'active | inactive | on_leave']
+  skills json
+  contract_weekly_hours integer [not null, default: 40]
+  hourly_rate numeric(10,2)
+  is_keyholder boolean [not null, default: false]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table shifts {
+  id varchar(36) [pk]
+  store_id varchar(36) [not null]
+  shift_date date [not null]
+  start_time time [not null]
+  end_time time [not null, note: 'end <= start means overnight (+1 day)']
+  role_required varchar(50)
+  required_skill varchar(50)
+  required_employees integer [not null, default: 1]
+  status varchar(20) [not null, note: 'draft | published | cancelled | completed']
+  notes text
+  created_by varchar(36)
+  published_at datetime
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  indexes {
+    (store_id, shift_date, start_time) [unique, name: 'uq_shift_slot']
+  }
+}
+
+Table shift_assignments {
+  id varchar(36) [pk]
+  shift_id varchar(36) [not null]
+  employee_id varchar(36) [not null]
+  status varchar(20) [not null, note: 'assigned | confirmed | completed | cancelled | no_show']
+  assigned_by varchar(36)
+  assigned_at datetime
+  cancelled_at datetime
+  cancelled_reason text
+  notes text
+  is_auto_assigned boolean [not null, default: false]
+
+  indexes {
+    (shift_id, employee_id) [unique, name: 'uq_assignment_shift_employee']
+  }
+}
+
+Table availability {
+  id varchar(36) [pk]
+  employee_id varchar(36) [not null]
+  weekday integer [not null, note: '0 = Monday … 6 = Sunday']
+  start_time time [not null]
+  end_time time [not null]
+  availability_type varchar(20) [not null, note: 'available | unavailable']
+  note varchar(255)
+  effective_from date
+  effective_to date
+  created_at datetime [not null]
+
+  indexes {
+    (employee_id, weekday, start_time) [unique, name: 'uq_availability_employee_slot']
+  }
+}
+
+Table attendance {
+  id varchar(36) [pk]
+  shift_id varchar(36) [not null]
+  employee_id varchar(36) [not null]
+  attendance_date date [not null]
+  clock_in datetime
+  clock_out datetime
+  status varchar(20) [not null, note: 'present | late | absent | incomplete | excused']
+  worked_minutes integer [not null, default: 0]
+  late_minutes integer [not null, default: 0]
+  notes text
+  was_corrected boolean [not null, default: false]
+  correction_reason text
+  corrected_by varchar(36)
+  corrected_at datetime
+  recorded_by varchar(36)
+
+  indexes {
+    (shift_id, employee_id) [unique, name: 'uq_attendance_shift_employee']
+  }
+}
+
+Table attendance_corrections {
+  id varchar(36) [pk]
+  attendance_id varchar(36) [not null]
+  manager_id varchar(36) [not null]
+  reason text [not null]
+  previous_clock_in datetime
+  previous_clock_out datetime
+  previous_status varchar(20)
+  new_clock_in datetime
+  new_clock_out datetime
+  new_status varchar(20)
+  created_at datetime [not null]
+}
+
+Table leave_requests {
+  id varchar(36) [pk]
+  employee_id varchar(36) [not null]
+  leave_type varchar(20) [not null, note: 'annual | sick | unpaid | other']
+  start_date date [not null]
+  end_date date [not null]
+  reason text [not null]
+  status varchar(20) [not null, note: 'pending | approved | rejected | cancelled']
+  has_conflict boolean [not null, default: false]
+  conflict_details text
+  reviewed_by varchar(36)
+  reviewed_at datetime
+  review_note text
+  created_at datetime [not null]
+}
+
+Table shift_swap_requests {
+  id varchar(36) [pk]
+  requester_id varchar(36) [not null]
+  target_employee_id varchar(36) [not null]
+  requester_shift_id varchar(36) [not null]
+  target_shift_id varchar(36) [not null]
+  reason text [not null]
+  status varchar(20) [not null, note: 'pending | approved | rejected | cancelled']
+  has_conflict boolean [not null, default: false]
+  conflict_details text
+  eligibility json
+  reviewed_by varchar(36)
+  reviewed_at datetime
+  review_note text
+  created_at datetime [not null]
+}
+
+Table notifications {
+  id varchar(36) [pk]
+  user_id varchar(36) [not null]
+  notification_type varchar(30) [not null]
+  title varchar(200) [not null]
+  body text
+  is_read boolean [not null, default: false]
+  read_at datetime
+  link_url varchar(255)
+  email_status varchar(20, note: 'sent | failed | null (in-app only)')
+  email_error varchar(255)
+  dedupe_key varchar(120) [unique, note: 'idempotency on retry']
+
+  indexes {
+    dedupe_key [unique, name: 'uq_notification_dedupe']
+  }
+}
+
+Table audit_logs {
+  id varchar(36) [pk, note: 'append-only, no updates/deletes']
+  user_id varchar(36)
+  store_id varchar(36)
+  action varchar(20) [not null]
+  entity_type varchar(50) [not null]
+  entity_id varchar(36)
+  details json
+  ip_address varchar(45)
+  created_at datetime [not null]
+}
+
+Ref: users.store_id > stores.id [delete: cascade]
+Ref: users.id < employees.id [delete: cascade]
+Ref: employees.store_id > stores.id [delete: cascade]
+Ref: shifts.store_id > stores.id [delete: cascade]
+Ref: shift_assignments.shift_id > shifts.id [delete: cascade]
+Ref: shift_assignments.employee_id > employees.id [delete: cascade]
+Ref: availability.employee_id > employees.id [delete: cascade]
+Ref: attendance.shift_id > shifts.id [delete: cascade]
+Ref: attendance.employee_id > employees.id [delete: cascade]
+Ref: attendance_corrections.attendance_id > attendance.id [delete: cascade]
+Ref: leave_requests.employee_id > employees.id [delete: cascade]
+Ref: shift_swap_requests.requester_id > employees.id
+Ref: shift_swap_requests.target_employee_id > employees.id
+Ref: shift_swap_requests.requester_shift_id > shifts.id
+Ref: shift_swap_requests.target_shift_id > shifts.id
+Ref: notifications.user_id > users.id [delete: cascade]
+Ref: audit_logs.user_id > users.id
+Ref: audit_logs.store_id > stores.id

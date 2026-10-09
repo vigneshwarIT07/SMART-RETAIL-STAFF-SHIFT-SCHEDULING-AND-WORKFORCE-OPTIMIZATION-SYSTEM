@@ -1,0 +1,78 @@
+<mxfile host="app.diagrams.net" version="22.0.0">
+  <diagram name="system-architecture" id="arch1">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="spa" value="Browser SPA&#10;React 18 + Vite + Bootstrap 5&#10;React Router + Axios + Context" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="20" y="80" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="api" value="FastAPI backend&#10;12 routers (app/api/v1)&#10;13 services (app/services)&#10;JWT + RBAC + rate limits" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="300" y="80" width="280" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="db" value="PostgreSQL 15&#10;12 tables&#10;Alembic migrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="620" y="80" width="240" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="mail" value="Mail server&#10;smtplib, env credentials&#10;disabled -&gt; in-app only" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="900" y="80" width="220" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="e1" value="HTTPS JSON {success,data,message}" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;fontColor=#6b7280;" edge="1" parent="1" source="spa" target="api">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" value="SQLAlchemy 2.x" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;fontColor=#6b7280;" edge="1" parent="1" source="api" target="db">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" value="SMTP" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;fontColor=#6b7280;" edge="1" parent="1" source="api" target="mail">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe" value="Vercel / Netlify&#10;vite build -&gt; dist/, SPA rewrite" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="20" y="280" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="be" value="Render / Railway&#10;uvicorn app.main:app + alembic upgrade head" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="300" y="280" width="280" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci" value="GitHub Actions&#10;backend.yml: ruff/black/pytest&#10;frontend.yml: eslint/build" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="620" y="280" width="280" height="100" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+  <diagram name="python-modules" id="mods1">
+    <mxGraphModel grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1160" pageHeight="600" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        <mxCell id="main" value="app.main&#10;FastAPI app, CORS, 12 routers&#10;GET /  GET /api/health  /docs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="420" y="40" width="300" height="90" as="geometry"/>
+        </mxCell>
+        <mxCell id="routers" value="app.api.v1 (12 routers)&#10;auth, stores, employees, shifts,&#10;scheduling, availability, attendance,&#10;leave, swaps, notifications, reports, health" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="20" y="180" width="260" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="services" value="app.services (13)&#10;shift, assignment (10 rules),&#10;scheduling, auto_schedule, attendance,&#10;availability, leave, swap, notification,&#10;email, report, employee, audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="310" y="180" width="290" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="models" value="app.models (12 tables)&#10;user/store, employee, shift/assignment,&#10;attendance + corrections, availability,&#10;requests, swaps, notifications, audit" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="630" y="180" width="250" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="core" value="app.core + db&#10;config, security (bcrypt+JWT),&#10;deps (RBAC), errors, rate_limit,&#10;session (Base/engine/get_db)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="910" y="180" width="220" height="150" as="geometry"/>
+        </mxCell>
+        <mxCell id="schemas" value="app.schemas + alembic + scripts&#10;{success,data,message} envelopes + validators&#10;versions/*_initial_schema.py&#10;seed.py, create_manager.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#e3e6ea;fontColor=#1f2937;" vertex="1" parent="1">
+          <mxGeometry x="310" y="380" width="460" height="110" as="geometry"/>
+        </mxCell>
+        <mxCell id="m1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;" edge="1" parent="1" source="main" target="routers">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;" edge="1" parent="1" source="main" target="services">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;" edge="1" parent="1" source="main" target="models">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="m4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=classic;strokeColor=#b4bac1;" edge="1" parent="1" source="main" target="core">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
