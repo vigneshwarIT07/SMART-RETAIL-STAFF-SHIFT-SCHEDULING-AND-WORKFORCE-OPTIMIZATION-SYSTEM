@@ -4,27 +4,48 @@ from __future__ import annotations
 
 from datetime import date, time, timedelta
 
-from app.models import Shift, Store
+from app.models import Shift
 from app.models.employee import Employee
 from app.models.enums import ShiftStatus
-from app.services import assignment_service, scheduling_service, auto_schedule_service
+from app.services import assignment_service, auto_schedule_service, scheduling_service
 from tests.conftest import make_shift_payload
 
 
 def _mgr_id(db, store):
     from app.models import User
+
     m = db.query(User).filter_by(email="manager@example.com").first()
     return m.id if m else None
 
 
-def _shift(db, store, day=None, start="09:00", end="17:00", role="cashier", req=1, skill=None, created_by=None):
+def _shift(
+    db,
+    store,
+    day=None,
+    start="09:00",
+    end="17:00",
+    role="cashier",
+    req=1,
+    skill=None,
+    created_by=None,
+):
     _cb = created_by or _mgr_id(db, store)
-    from datetime import datetime as _dt
-    d = date.today() + timedelta(days=1) if day is None else date.fromisoformat(day) if isinstance(day, str) else day
-    s = Shift(store_id=store.id, shift_date=d,
-              start_time=time.fromisoformat(start), end_time=time.fromisoformat(end),
-              role_required=role, required_skill=skill, required_employees=req,
-              status=ShiftStatus.PUBLISHED, created_by=_cb)
+    d = (
+        date.today() + timedelta(days=1)
+        if day is None
+        else date.fromisoformat(day) if isinstance(day, str) else day
+    )
+    s = Shift(
+        store_id=store.id,
+        shift_date=d,
+        start_time=time.fromisoformat(start),
+        end_time=time.fromisoformat(end),
+        role_required=role,
+        required_skill=skill,
+        required_employees=req,
+        status=ShiftStatus.PUBLISHED,
+        created_by=_cb,
+    )
     db.add(s)
     db.flush()
     return s
@@ -41,6 +62,7 @@ def test_assignment_happy_path(db, store, manager, employee_user):
 
 def test_assignment_inactive_employee_blocked(db, store, manager, employee_user):
     from app.models.enums import EmployeeStatus
+
     emp = db.query(Employee).filter_by(id=employee_user.id).one()
     emp.status = EmployeeStatus.INACTIVE
     db.flush()
@@ -77,7 +99,6 @@ def test_shift_closed_blocked(db, store, manager, employee_user):
 
 
 def test_coverage_statuses(db, store, manager, employee_user):
-    from app.services import shift_service
     emp = db.query(Employee).filter_by(id=employee_user.id).one()
     shift = _shift(db, store, created_by=_mgr_id(db, store), req=2)
     status = scheduling_service.coverage_status(shift, 0)
@@ -87,18 +108,30 @@ def test_coverage_statuses(db, store, manager, employee_user):
     assert status2.value == "understaffed"
 
 
-def test_auto_schedule_requires_confirmation(db, store, manager, employee_user, employee2_user):
-    s1 = _shift(db, store, created_by=_mgr_id(db, store), start="09:00", end="13:00")
-    s2 = _shift(db, store, created_by=_mgr_id(db, store), start="14:00", end="18:00")
+def test_auto_schedule_requires_confirmation(
+    db, store, manager, employee_user, employee2_user
+):
+    _shift(db, store, created_by=_mgr_id(db, store), start="09:00", end="13:00")
+    second_id = _shift(
+        db, store, created_by=_mgr_id(db, store), start="14:00", end="18:00"
+    ).id
     result = auto_schedule_service.generate_proposal(
-        db, store_id=store.id, start_date=date.today() + timedelta(days=1),
-        end_date=date.today() + timedelta(days=1))
+        db,
+        store_id=store.id,
+        start_date=date.today() + timedelta(days=1),
+        end_date=date.today() + timedelta(days=1),
+    )
     assert "proposals" in result
+    assert second_id is not None
     # apply with explicit confirmation
     if result["proposals"]:
         applied = auto_schedule_service.apply_proposal(
-            db, store_id=store.id, proposals=result["proposals"],
-            approved_by=manager, publish=False)
+            db,
+            store_id=store.id,
+            proposals=result["proposals"],
+            approved_by=manager,
+            publish=False,
+        )
         assert applied["applied_count"] >= 0 if "applied_count" in applied else True
 
 
@@ -111,9 +144,15 @@ def test_api_shift_crud_and_assign_flow(client, manager_headers, employee_user):
     emp_list = client.get("/api/employees/", headers=manager_headers)
     assert emp_list.status_code == 200, emp_list.text
     emp_id = emp_list.json()["data"]["items"][0]["id"]
-    validated = client.post("/api/shifts/assignments/validate",
-                            headers=manager_headers, json={"shift_id": shift_id, "employee_id": emp_id})
+    validated = client.post(
+        "/api/shifts/assignments/validate",
+        headers=manager_headers,
+        json={"shift_id": shift_id, "employee_id": emp_id},
+    )
     assert validated.status_code == 200
-    assigned = client.post("/api/shifts/assignments",
-                           headers=manager_headers, json={"shift_id": shift_id, "employee_id": emp_id})
+    assigned = client.post(
+        "/api/shifts/assignments",
+        headers=manager_headers,
+        json={"shift_id": shift_id, "employee_id": emp_id},
+    )
     assert assigned.status_code in (200, 201), assigned.text
