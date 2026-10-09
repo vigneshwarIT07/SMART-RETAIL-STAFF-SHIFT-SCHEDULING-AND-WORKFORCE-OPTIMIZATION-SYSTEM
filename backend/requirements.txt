@@ -1,0 +1,43 @@
+# ---------------------------------------------------------------------------
+# Retail Staff Shift Scheduling Platform - backend dependencies
+#
+# Python 3.11
+#
+# Install with:
+#   python -m venv .venv
+#   .venv\Scripts\activate
+#   pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+
+# --- Web framework -------------------------------------------------------
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+
+# --- Configuration -------------------------------------------------------
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# --- Database ------------------------------------------------------------
+SQLAlchemy==2.0.36
+alembic==1.14.0
+psycopg[binary]==3.3.6
+
+# --- Authentication ------------------------------------------------------
+PyJWT==2.14.0
+# NOTE: passlib is deliberately NOT used. passlib 1.7.4 is incompatible with
+# bcrypt 5.x and raises at hash time (detect_wrap_bug in
+# passlib/handlers/bcrypt.py). The `bcrypt` library is used directly in
+# app/core/security.py instead. See README "Technical notes".
+bcrypt==5.0.0
+
+# --- Testing -------------------------------------------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.0.0
+httpx==0.28.1
+
+# --- Code quality --------------------------------------------------------
+black==26.10.0
+ruff==0.16.10
