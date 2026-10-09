@@ -354,33 +354,55 @@ def main() -> int:
         )
         decide_leave(rejected_leave, "rejected", "Demo rejection — rota too tight")
 
-        # -- Swap variety: approve one double-swap between demo shifts, reject
-        # another. Anything ineligible is left pending for the manager queue.
+        # -- Leave bulk: 10 more requests across the next weeks so the Leave
+        # page shows a full queue. Future dates keep approvals from touching
+        # this week's demo shifts. Approved / rejected / pending in rotation.
+        all_staff = ["alice@example.com", *ROTATION]
+        leave_kinds = [LeaveType.ANNUAL, LeaveType.SICK, LeaveType.UNPAID]
+        for i in range(10):
+            email = all_staff[i % len(all_staff)]
+            start = next_monday + timedelta(weeks=(i // 3) + 1, days=(i % 5))
+            end = start + timedelta(days=(i % 3))
+            req = file_leave(email, start, end, leave_kinds[i % 3], f"Demo bulk leave #{i + 1}")
+            if i % 3 == 0:
+                decide_leave(req, "approved", "Demo approval")
+            elif i % 3 == 1:
+                decide_leave(req, "rejected", "Demo rejection")
+
+        # -- Swap bulk: ~10 demo swaps (approved / rejected / pending mix).
+        # Pool = assigned demo-evening links only: mornings would disturb the
+        # overtime pile and today's shifts feed the understaffed demo.
         tagged_ids = [s.id for s in created_shifts]
-        cand = (
-            db.scalars(
+
+        def swap_pool(exclude_shifts):
+            if not tagged_ids:
+                return []
+            out = []
+            for link in db.scalars(
                 select(ShiftAssignment)
                 .where(
-                    ShiftAssignment.shift_id.in_(tagged_ids),
                     ShiftAssignment.status == AssignmentStatus.ASSIGNED,
                 )
                 .order_by(ShiftAssignment.employee_id)
-            ).all()
-            if tagged_ids
-            else []
-        )
-        first_link: dict[str, ShiftAssignment] = {}
-        for link in cand:
-            first_link.setdefault(link.employee_id, link)
-        owners = list(first_link)
-        pairs = []
-        for i in range(len(owners)):
-            for j in range(i + 1, len(owners)):
-                a, b = first_link[owners[i]], first_link[owners[j]]
-                if a.shift_id != b.shift_id:
-                    pairs.append((owners[i], a, owners[j], b))
+            ).all():
+                holder = db.get(User, link.employee_id)
+                if holder is None or holder.email == "alice@example.com":
+                    continue
+                shift = db.get(Shift, link.shift_id)
+                if shift is None or shift.id in exclude_shifts:
+                    continue
+                if shift.store_id != store.id:
+                    continue
+                if shift.shift_date == today:
+                    continue
+                if str(shift.start_time)[:5] == "07:30":
+                    continue
+                if shift.shift_date < week_start or shift.shift_date > week_end:
+                    continue
+                out.append((link.employee_id, link, shift))
+            return out
 
-        def file_swap(e1, a, e2, b):
+        def file_swap(e1, a, e2, b, reason="Demo: swap evenings with a teammate"):
             dup = db.scalar(
                 select(ShiftSwapRequest).where(
                     ShiftSwapRequest.requester_id == e1,
@@ -401,7 +423,7 @@ def main() -> int:
                         target_employee_id=e2,
                         requester_shift_id=a.shift_id,
                         target_shift_id=b.shift_id,
-                        reason="Demo: swap evenings with a teammate",
+                        reason=reason,
                     )
             except (ConflictError, NotFoundError, IntegrityError) as exc:
                 print(f"  skip demo swap: {exc}")
@@ -420,12 +442,40 @@ def main() -> int:
                 return False
             return True
 
-        if pairs:
-            e1, a, e2, b = pairs[0]
-            decide_swap(file_swap(e1, a, e2, b), "approved", "Demo approval")
-        if len(pairs) > 1:
-            e1, a, e2, b = pairs[1]
-            decide_swap(file_swap(e1, a, e2, b), "rejected", "Demo rejection")
+        approved_shifts: set[str] = set()
+        seen_pairs: set[tuple[str, str, str, str]] = set()
+        for k in range(10):
+            pool = swap_pool(approved_shifts)
+            by_emp: dict[str, list] = {}
+            for emp_id, link, shift in pool:
+                by_emp.setdefault(emp_id, []).append((link, shift))
+            owners = list(by_emp)
+            pair = None
+            for i in range(len(owners)):
+                for j in range(len(owners)):
+                    if i == j:
+                        continue
+                    a_link, a_shift = by_emp[owners[i]][0]
+                    b_link, b_shift = by_emp[owners[j]][0]
+                    if a_shift.id == b_shift.id:
+                        continue
+                    key = (owners[i], a_shift.id, owners[j], b_shift.id)
+                    if key in seen_pairs:
+                        continue
+                    pair = (owners[i], a_link, owners[j], b_link)
+                    seen_pairs.add(key)
+                    break
+                if pair is not None:
+                    break
+            if pair is None:
+                break
+            e1, a, e2, b = pair
+            swap = file_swap(e1, a, e2, b, reason=f"Demo bulk swap #{k + 1}")
+            if k % 3 == 0:
+                if decide_swap(swap, "approved", "Demo approval"):
+                    approved_shifts.update([a.shift_id, b.shift_id])
+            elif k % 3 == 1:
+                decide_swap(swap, "rejected", "Demo rejection")
 
         # -- Availability windows so the Availability page has content.
         for index, email in enumerate(["alice@example.com", *ROTATION]):
