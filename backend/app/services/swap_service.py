@@ -36,9 +36,7 @@ def _active_link(db: Session, shift_id: str, employee_id: str):
         select(ShiftAssignment).where(
             ShiftAssignment.shift_id == shift_id,
             ShiftAssignment.employee_id == employee_id,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
         )
     )
 
@@ -52,9 +50,7 @@ def check_eligibility(
     target_shift: Shift,
 ) -> dict:
     """Dry-run both halves of a swap; returns blocking issues per side."""
-    requester_result = assignment_service.validate_assignment(
-        db, target_shift, requester
-    )
+    requester_result = assignment_service.validate_assignment(db, target_shift, requester)
     target_result = assignment_service.validate_assignment(db, requester_shift, target)
     blocking = [
         issue
@@ -84,14 +80,10 @@ def create_request(
         raise ConflictError("Cannot swap a shift with itself.")
 
     requester_shift = db.scalar(
-        select(Shift).where(
-            Shift.id == requester_shift_id, Shift.store_id == requester.store_id
-        )
+        select(Shift).where(Shift.id == requester_shift_id, Shift.store_id == requester.store_id)
     )
     target_shift = db.scalar(
-        select(Shift).where(
-            Shift.id == target_shift_id, Shift.store_id == requester.store_id
-        )
+        select(Shift).where(Shift.id == target_shift_id, Shift.store_id == requester.store_id)
     )
     if requester_shift is None or target_shift is None:
         raise NotFoundError("One of the shifts was not found in this store.")
@@ -224,12 +216,8 @@ def decide_request(
     # Approval path — everything below must succeed together.
     try:
         requester = db.scalar(select(Employee).where(Employee.id == swap.requester_id))
-        target = db.scalar(
-            select(Employee).where(Employee.id == swap.target_employee_id)
-        )
-        requester_shift = db.scalar(
-            select(Shift).where(Shift.id == swap.requester_shift_id)
-        )
+        target = db.scalar(select(Employee).where(Employee.id == swap.target_employee_id))
+        requester_shift = db.scalar(select(Shift).where(Shift.id == swap.requester_shift_id))
         target_shift = db.scalar(select(Shift).where(Shift.id == swap.target_shift_id))
         if requester is None or target is None:
             raise ConflictError("One of the employees no longer exists.")
@@ -264,26 +252,43 @@ def decide_request(
                 "Swap no longer passes validation; details recorded on the request."
             )
 
-        # Atomic exchange.
+        # Atomic exchange. Old links are cancelled; the new links reuse a
+        # historical row when one exists, because (shift, employee) carries
+        # a plain unique constraint that a blind INSERT would violate.
         old_requester_link.status = AssignmentStatus.CANCELLED
         old_requester_link.cancelled_reason = f"Swap {swap.id} approved"
         old_target_link.status = AssignmentStatus.CANCELLED
         old_target_link.cancelled_reason = f"Swap {swap.id} approved"
-        new_requester_link = ShiftAssignment(
-            shift_id=target_shift.id,
-            employee_id=requester.id,
-            status=AssignmentStatus.ASSIGNED,
-            assigned_by=reviewer.id,
-            notes=f"Swap {swap.id} approved",
-        )
-        new_target_link = ShiftAssignment(
-            shift_id=requester_shift.id,
-            employee_id=target.id,
-            status=AssignmentStatus.ASSIGNED,
-            assigned_by=reviewer.id,
-            notes=f"Swap {swap.id} approved",
-        )
-        db.add_all([new_requester_link, new_target_link])
+
+        def _place(shift_id: str, employee_id: str) -> None:
+            existing = db.scalar(
+                select(ShiftAssignment).where(
+                    ShiftAssignment.shift_id == shift_id,
+                    ShiftAssignment.employee_id == employee_id,
+                )
+            )
+            note = f"Swap {swap.id} approved"
+            if existing is not None:
+                existing.status = AssignmentStatus.ASSIGNED
+                existing.assigned_by = reviewer.id
+                existing.assigned_at = datetime.now(UTC)
+                existing.cancelled_at = None
+                existing.cancelled_reason = None
+                existing.notes = note
+                existing.is_auto_assigned = False
+                return
+            db.add(
+                ShiftAssignment(
+                    shift_id=shift_id,
+                    employee_id=employee_id,
+                    status=AssignmentStatus.ASSIGNED,
+                    assigned_by=reviewer.id,
+                    notes=note,
+                )
+            )
+
+        _place(target_shift.id, requester.id)
+        _place(requester_shift.id, target.id)
         swap.status = SwapStatus.APPROVED
         swap.has_conflict = False
         swap.reviewed_by = reviewer.id
@@ -330,9 +335,7 @@ def _notify_parties(db: Session, swap: ShiftSwapRequest, decision: str) -> None:
         )
 
 
-def cancel_request(
-    db: Session, *, swap: ShiftSwapRequest, cancelled_by: User
-) -> ShiftSwapRequest:
+def cancel_request(db: Session, *, swap: ShiftSwapRequest, cancelled_by: User) -> ShiftSwapRequest:
     """Withdraw a pending swap request (requester or manager)."""
     from app.core.errors import ConflictError
 
