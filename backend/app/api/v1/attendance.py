@@ -90,7 +90,7 @@ def clock_in(
     result = attendance_service.clock_in(
         db, shift=shift, employee=employee, recorded_by=current_user, at=at
     )
-    record = result["record"] if isinstance(result, dict) else result
+    record = result.get("attendance", result.get("record")) if isinstance(result, dict) else result
     return success(data=_payload(record), message="Clocked in")
 
 
@@ -109,7 +109,7 @@ def clock_out(
     result = attendance_service.clock_out(
         db, shift=shift, employee=employee, recorded_by=current_user, at=at
     )
-    record = result["record"] if isinstance(result, dict) else result
+    record = result.get("attendance", result.get("record")) if isinstance(result, dict) else result
     return success(data=_payload(record), message="Clocked out")
 
 
