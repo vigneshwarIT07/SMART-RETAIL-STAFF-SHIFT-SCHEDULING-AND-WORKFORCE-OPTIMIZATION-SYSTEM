@@ -9,11 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Full backend: 12-table PostgreSQL schema with Alembic migration, 13 business
+  services, 12 routers under `/api` with the `{success, data, message}` envelope.
+- Assignment validation with 10 rules (5 blocking, 5 overridable warnings) plus
+  a deterministic auto-schedule proposal engine requiring explicit confirmation.
+- Attendance with grace-period lateness and server-computed worked minutes;
+  leave with conflict flagging; atomic shift swaps with revalidation on approval.
+- Full React frontend (Vite + Bootstrap 5): login, dashboard, weekly calendar,
+  employees, attendance, leave, swaps, availability, reports with CSV export,
+  notifications and store settings.
+- Pytest suite (32 tests, 69% total coverage), GitHub Actions CI for backend
+  and frontend, Render + Vercel deploy blueprints, architecture/ER/module
+  diagrams with DBML and draw.io sources.
+
 ### Changed
+
+- None yet (first release line).
 
 ### Fixed
 
+- `cancel_shift`/`delete_shift` now read assignments from a fresh query instead
+  of the potentially stale in-memory relationship collection.
+- Draft shifts are hidden from employee shift and calendar listings.
+- Reports overtime flag now renders its own "overtime" badge.
+
 ### Security
+
+- bcrypt-direct password hashing (passlib 1.7.4 is broken against bcrypt 5.x),
+  JWT with expiry, store-scoped RBAC returning 404 for out-of-scope objects,
+  login rate limiting, append-only audit log, no public manager self-signup.
 
 ---
 
