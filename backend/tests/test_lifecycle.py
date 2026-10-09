@@ -109,3 +109,29 @@ def test_api_notifications_roundtrip(client, manager_headers):
     assert "unread" in unread.json()["data"]
     read_all = client.post("/api/notifications/read-all", headers=manager_headers)
     assert read_all.status_code == 200
+
+
+def test_employees_cannot_see_draft_shifts(client, manager_headers, employee_headers):
+    from tests.conftest import make_shift_payload
+
+    payload = make_shift_payload(publish=False)
+    created = client.post("/api/shifts", headers=manager_headers, json=payload)
+    assert created.status_code == 201, created.text
+    shift_id = created.json()["data"]["id"]
+    as_manager = client.get("/api/shifts", headers=manager_headers)
+    assert shift_id in [s["id"] for s in as_manager.json()["data"]]
+    as_employee = client.get("/api/shifts", headers=employee_headers)
+    assert as_employee.status_code == 200
+    assert shift_id not in [s["id"] for s in as_employee.json()["data"]]
+    day = payload["shift_date"]
+    cal = client.get(
+        f"/api/scheduling/calendar?start_date={day}&end_date={day}",
+        headers=employee_headers,
+    )
+    assert cal.status_code == 200
+    visible = [
+        entry["shift"]["id"]
+        for one_day in cal.json()["data"]["days"]
+        for entry in one_day["shifts"]
+    ]
+    assert shift_id not in visible

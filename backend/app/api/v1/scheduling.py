@@ -12,6 +12,7 @@ from app.core.deps import get_current_user, get_managed_store_id, require_manage
 from app.core.errors import success
 from app.db.session import get_db
 from app.models import User
+from app.models.enums import ShiftStatus
 from app.schemas.scheduling import ApplyGenerationRequest, GenerationRequest
 from app.services import auto_schedule_service, scheduling_service
 
@@ -29,10 +30,14 @@ def read_calendar(
     weeks = scheduling_service.calendar_weeks(
         db, store_id=current_user.store_id, start_date=start_date, end_date=end_date
     )
+    if current_user.role.value != "manager":
+        # Employees must not see unpublished (draft) shifts in their calendar.
+        for day in weeks:
+            day["shifts"] = [
+                entry for entry in day["shifts"] if entry["shift"].status != ShiftStatus.DRAFT
+            ]
     return success(
-        data=jsonable_encoder(
-            {"start_date": start_date, "end_date": end_date, "days": weeks}
-        ),
+        data=jsonable_encoder({"start_date": start_date, "end_date": end_date, "days": weeks}),
         message="Calendar",
     )
 
