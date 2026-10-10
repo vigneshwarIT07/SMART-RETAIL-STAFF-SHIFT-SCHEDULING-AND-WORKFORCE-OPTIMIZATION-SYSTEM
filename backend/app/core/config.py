@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import secrets
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 # Values that are obviously placeholders. They are rejected in production.
 _PLACEHOLDER_SECRETS = {
@@ -61,7 +62,7 @@ class Settings(BaseSettings):
     # --- URLs / CORS ----------------------------------------------------
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
-    extra_cors_origins: list[str] = Field(default_factory=list)
+    extra_cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
 
     # --- Bootstrap manager ---------------------------------------------
     manager_email: str = "manager@example.com"
