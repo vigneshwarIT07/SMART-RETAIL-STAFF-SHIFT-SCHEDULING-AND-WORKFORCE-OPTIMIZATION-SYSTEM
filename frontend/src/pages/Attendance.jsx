@@ -211,7 +211,7 @@ export default function Attendance() {
           <ul className="list-group">
             {todayShifts.map((s) => (
               <li key={s.id} className="list-group-item d-flex align-items-center gap-2">
-                <span>{String(s.start_time).slice(0, 5)}â€“{String(s.end_time).slice(0, 5)} · {s.role_required || 'General'}</span>
+                <span>{String(s.start_time).slice(0, 5)}–{String(s.end_time).slice(0, 5)} · {s.role_required || 'General'}</span>
                 <StatusBadge value={s.status} />
                 <span className="ms-auto" />
                 <button type="button" className="btn btn-sm btn-primary" onClick={() => handleClock('in', s.id)}>Clock in</button>

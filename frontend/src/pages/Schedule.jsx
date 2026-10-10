@@ -129,7 +129,7 @@ function ShiftDetail({ shiftId, onClose, onChanged, employees }) {
   const ownAssignment = shift.assignments?.find((a) => a.employee_id === employeeId && (a.status === 'assigned' || a.status === 'confirmed'));
 
   return (
-    <Modal title={`Shift — ${shift.shift_date} ${shortTime(shift.start_time)}â€“${shortTime(shift.end_time)}`} onClose={onClose} wide>
+    <Modal title={`Shift — ${shift.shift_date} ${shortTime(shift.start_time)}–${shortTime(shift.end_time)}`} onClose={onClose} wide>
       <p className="small text-muted mb-2">
         {shift.role_required || 'General'} · {shift.required_employees} required · {shift.duration_hours} h
         {shift.is_overnight ? ' · overnight' : ''} · <StatusBadge value={shift.status} /> <StatusBadge value={shift.coverage_status} />
@@ -357,7 +357,7 @@ function AutoSchedule({ weekStart, weekEnd, onApplied }) {
               <h3 className="fs-6 mt-2">Could not fill ({result.unfillable.length})</h3>
               <ul className="small">
                 {result.unfillable.map((u) => (
-                  <li key={u.shift_id}>{u.shift_date} {shortTime(u.start_time)}â€“{shortTime(u.end_time)}: {u.reason}</li>
+                  <li key={u.shift_id}>{u.shift_date} {shortTime(u.start_time)}–{shortTime(u.end_time)}: {u.reason}</li>
                 ))}
               </ul>
             </>
@@ -490,7 +490,7 @@ export default function Schedule() {
                     const s = entry.shift;
                     return (
                       <button key={s.id} type="button" className="shift-block" onClick={() => setSelectedShift(s.id)}>
-                        <span className="t">{shortTime(s.start_time)}â€“{shortTime(s.end_time)}</span>
+                        <span className="t">{shortTime(s.start_time)}–{shortTime(s.end_time)}</span>
                         <br />
                         {s.role_required || 'General'} · {entry.assigned_count}/{s.required_employees}
                         <br />
@@ -516,7 +516,7 @@ export default function Schedule() {
                     {coverage.rows.map((r) => (
                       <tr key={r.shift_id}>
                         <td>{r.shift_date}</td>
-                        <td>{shortTime(r.start_time)}â€“{shortTime(r.end_time)}</td>
+                        <td>{shortTime(r.start_time)}–{shortTime(r.end_time)}</td>
                         <td>{r.role_required || 'General'}</td>
                         <td>{r.assigned_count}/{r.required_employees}</td>
                         <td><StatusBadge value={r.coverage_status} /></td>

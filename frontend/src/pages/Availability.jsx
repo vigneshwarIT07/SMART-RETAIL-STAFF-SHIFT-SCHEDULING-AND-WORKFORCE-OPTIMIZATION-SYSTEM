@@ -162,7 +162,7 @@ export default function Availability() {
                   {rows.map((r) => (
                     <tr key={r.id}>
                       <td>{weekdayName(r.weekday)}</td>
-                      <td>{shortTime(r.start_time)}â€“{shortTime(r.end_time)}</td>
+                      <td>{shortTime(r.start_time)}–{shortTime(r.end_time)}</td>
                       <td><StatusBadge value={r.availability_type} /></td>
                       <td className="small">{r.note || '—'}{r.employee_name ? ` (${r.employee_name})` : ''}</td>
                       <td className="text-end">
