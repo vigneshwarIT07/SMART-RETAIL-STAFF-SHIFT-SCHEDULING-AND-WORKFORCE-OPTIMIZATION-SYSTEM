@@ -32,11 +32,16 @@ def _build_engine() -> Engine:
         "pool_pre_ping": True,
     }
     if not settings.database_url.startswith("sqlite"):
-        kwargs.update(
-            pool_size=settings.db_pool_size,
-            max_overflow=settings.db_max_overflow,
-            pool_recycle=1800,
-        )
+        if settings.db_disable_pooling:
+            from sqlalchemy.pool import NullPool
+
+            kwargs["poolclass"] = NullPool
+        else:
+            kwargs.update(
+                pool_size=settings.db_pool_size,
+                max_overflow=settings.db_max_overflow,
+                pool_recycle=1800,
+            )
     else:  # pragma: no cover - fallback path only
         from sqlalchemy.pool import StaticPool
 

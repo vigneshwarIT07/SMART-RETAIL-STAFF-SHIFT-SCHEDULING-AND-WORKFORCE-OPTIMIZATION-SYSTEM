@@ -32,12 +32,6 @@ PyJWT==2.14.0
 # app/core/security.py instead. See README "Technical notes".
 bcrypt==5.0.0
 
-# --- Testing -------------------------------------------------------------
-pytest==9.1.1
-pytest-asyncio==1.4.0
-pytest-cov==7.0.0
-httpx==0.28.1
-
-# --- Code quality --------------------------------------------------------
-black==26.10.0
-ruff==0.16.10
+# --- Development / CI only (see requirements-dev.txt) --------------------
+# pytest, pytest-asyncio, pytest-cov, httpx, black and ruff are intentionally
+# absent here so serverless deployments install the runtime only.

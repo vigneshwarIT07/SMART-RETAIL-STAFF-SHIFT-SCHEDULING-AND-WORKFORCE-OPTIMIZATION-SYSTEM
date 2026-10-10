@@ -39,12 +39,19 @@ class Settings(BaseSettings):
     debug: bool = False
 
     # --- Database ------------------------------------------------------
-    database_url: str = (
-        "postgresql+psycopg://postgres:postgres@localhost:5432/retail_scheduling"
-    )
+    database_url: str = "postgresql+psycopg://postgres:postgres@localhost:5432/retail_scheduling"
     db_echo: bool = False
     db_pool_size: int = 5
     db_max_overflow: int = 10
+    db_disable_pooling: bool = Field(
+        default=False,
+        description=(
+            "Set DB_DISABLE_POOLING=true on serverless hosts (e.g. Vercel "
+            "Functions) backed by an external pooler such as Neon's pooled "
+            "endpoint, so each invocation uses a fresh connection instead of "
+            "holding process-local pool slots."
+        ),
+    )
 
     # --- JWT -----------------------------------------------------------
     jwt_secret_key: str = "CHANGE_ME_development_only_secret_key"
@@ -96,6 +103,28 @@ class Settings(BaseSettings):
         """Allow comma-separated origins in a single environment variable."""
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _normalize_database_scheme(cls, value: object) -> object:
+        """Accept provider-issued URL schemes.
+
+        Managed Postgres providers (e.g. Neon) issue ``postgres://`` or
+        ``postgresql://`` URLs, which SQLAlchemy would otherwise pair with the
+        psycopg2 driver. This project only ships psycopg v3, so rewrite the
+        scheme to ``postgresql+psycopg://`` and leave everything else —
+        including query parameters such as ``sslmode`` — untouched.
+        """
+        if isinstance(value, str):
+            lowered = value.lower()
+            if lowered.startswith("postgres://") or (
+                lowered.startswith("postgresql://")
+                and "+psycopg" not in lowered.split("://", 1)[0]
+                and "+psycopg2" not in lowered.split("://", 1)[0]
+            ):
+                _, _, rest = value.partition("://")
+                return f"postgresql+psycopg://{rest}"
         return value
 
     # ------------------------------------------------------------------

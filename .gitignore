@@ -46,6 +46,9 @@ node_modules/
 frontend/dist/
 frontend/build/
 frontend/.vite/
+frontend/.vercel
+backend/.vercel
+.vercel
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

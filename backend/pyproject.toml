@@ -19,3 +19,8 @@ ignore = [
 [tool.black]
 line-length = 100
 target-version = ["py311"]
+
+[tool.vercel]
+# Explicit entrypoint for Vercel's Python runtime: load `app` from
+# `app/main.py` relative to the backend/ project root.
+entrypoint = "app.main:app"

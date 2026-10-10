@@ -1,0 +1,19 @@
+# ---------------------------------------------------------------------------
+# Retail Staff Shift Scheduling Platform - development / CI dependencies
+#
+# Install alongside requirements.txt for local development and CI:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# These packages are deliberately absent from requirements.txt so that
+# serverless production deployments install the runtime only.
+# ---------------------------------------------------------------------------
+
+# --- Testing -------------------------------------------------------------
+pytest==9.1.1
+pytest-asyncio==1.4.0
+pytest-cov==7.0.0
+httpx==0.28.1
+
+# --- Code quality --------------------------------------------------------
+black==26.10.0
+ruff==0.16.10
