@@ -43,10 +43,10 @@ export function StatusBadge({ value }) {
   const key = String(value ?? '').toLowerCase();
   const style = STATUS_STYLES[key] || 'secondary';
   const label = String(value ?? '').replace(/_/g, ' ');
-  return <span className={`badge text-bg-${style}`}>{label || 'â€”'}</span>;
+  return <span className={`badge text-bg-${style}`}>{label || '—'}</span>;
 }
 
-export function Loading({ text = 'Loadingâ€¦' }) {
+export function Loading({ text = 'Loading…' }) {
   return <p className="text-muted">{text}</p>;
 }
 
@@ -109,7 +109,7 @@ export function ConfirmDialog({ title, body, confirmLabel = 'Confirm', onConfirm
               Cancel
             </button>
             <button type="button" className="btn btn-primary" onClick={onConfirm} disabled={busy}>
-              {busy ? 'Workingâ€¦' : confirmLabel}
+              {busy ? 'Working…' : confirmLabel}
             </button>
           </div>
         </div>

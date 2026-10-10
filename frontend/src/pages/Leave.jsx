@@ -149,8 +149,8 @@ export default function Leave() {
                   <tr key={r.id}>
                     <td>{r.employee_name || r.employee_id.slice(0, 8)}</td>
                     <td className="text-capitalize">{r.leave_type}</td>
-                    <td>{r.start_date} â†’ {r.end_date}</td>
-                    <td className="small">{r.reason}{r.has_conflict && <span className="d-block text-warning">Conflicts with assigned shift(s) â€” needs review</span>}</td>
+                    <td>{r.start_date} → {r.end_date}</td>
+                    <td className="small">{r.reason}{r.has_conflict && <span className="d-block text-warning">Conflicts with assigned shift(s) — needs review</span>}</td>
                     <td><StatusBadge value={r.status} /></td>
                     <td className="text-end text-nowrap">
                       {isManager && r.status === 'pending' && (
@@ -174,7 +174,7 @@ export default function Leave() {
 
       {deciding && (
         <ConfirmDialog
-          title={`Decide leave (${deciding.start_date} â†’ ${deciding.end_date})`}
+          title={`Decide leave (${deciding.start_date} → ${deciding.end_date})`}
           body={deciding.has_conflict ? 'This request overlaps assigned shifts. Approving releases those assignments.' : 'Approve or reject this request?'}
           confirmLabel={decision.decision === 'approved' ? 'Approve' : 'Reject'}
           onCancel={() => setDeciding(null)}

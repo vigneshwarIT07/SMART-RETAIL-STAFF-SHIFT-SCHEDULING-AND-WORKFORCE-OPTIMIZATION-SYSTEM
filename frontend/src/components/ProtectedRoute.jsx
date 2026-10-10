@@ -8,7 +8,7 @@ export default function ProtectedRoute({ children, roles }) {
   if (loading) {
     return (
       <div className="page">
-        <p className="text-muted">Loading sessionâ€¦</p>
+        <p className="text-muted">Loading session…</p>
       </div>
     );
   }

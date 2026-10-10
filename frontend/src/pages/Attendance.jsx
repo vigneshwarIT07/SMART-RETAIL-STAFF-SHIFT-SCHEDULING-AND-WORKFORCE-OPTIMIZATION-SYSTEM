@@ -95,7 +95,7 @@ function ManagerTools({ onChanged }) {
           <div className="col-md-4">
             <label className="form-label" htmlFor="abs-shift">Shift</label>
             <select id="abs-shift" className="form-select" required value={absForm.shift_id} onChange={(e) => setAbsForm({ ...absForm, shift_id: e.target.value })}>
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               {shifts.map((s) => (
                 <option key={s.id} value={s.id}>{s.shift_date} {String(s.start_time).slice(0, 5)} {s.role_required || ''}</option>
               ))}
@@ -104,7 +104,7 @@ function ManagerTools({ onChanged }) {
           <div className="col-md-4">
             <label className="form-label" htmlFor="abs-emp">Employee</label>
             <select id="abs-emp" className="form-select" required value={absForm.employee_id} onChange={(e) => setAbsForm({ ...absForm, employee_id: e.target.value })}>
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               {employees.map((emp) => (
                 <option key={emp.id} value={emp.id}>{emp.full_name}</option>
               ))}
@@ -274,7 +274,7 @@ export default function Attendance() {
                     <td>{fmtDateTime(r.clock_in)}</td>
                     <td>{fmtDateTime(r.clock_out)}{r.is_missing_clockout ? ' (missing)' : ''}</td>
                     <td>{hoursText(r.worked_minutes)}</td>
-                    <td>{r.late_minutes ? `${r.late_minutes} min` : 'â€”'}</td>
+                    <td>{r.late_minutes ? `${r.late_minutes} min` : '—'}</td>
                     <td><StatusBadge value={r.status} />{r.was_corrected && <small className="text-muted d-block">corrected</small>}</td>
                   </tr>
                 ))}

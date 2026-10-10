@@ -164,7 +164,7 @@ export default function Availability() {
                       <td>{weekdayName(r.weekday)}</td>
                       <td>{shortTime(r.start_time)}â€“{shortTime(r.end_time)}</td>
                       <td><StatusBadge value={r.availability_type} /></td>
-                      <td className="small">{r.note || 'â€”'}{r.employee_name ? ` (${r.employee_name})` : ''}</td>
+                      <td className="small">{r.note || '—'}{r.employee_name ? ` (${r.employee_name})` : ''}</td>
                       <td className="text-end">
                         <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => setDeleting(r)}>Remove</button>
                       </td>

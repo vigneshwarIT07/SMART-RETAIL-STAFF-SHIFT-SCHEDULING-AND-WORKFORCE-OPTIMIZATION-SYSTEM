@@ -129,7 +129,7 @@ function ShiftDetail({ shiftId, onClose, onChanged, employees }) {
   const ownAssignment = shift.assignments?.find((a) => a.employee_id === employeeId && (a.status === 'assigned' || a.status === 'confirmed'));
 
   return (
-    <Modal title={`Shift â€” ${shift.shift_date} ${shortTime(shift.start_time)}â€“${shortTime(shift.end_time)}`} onClose={onClose} wide>
+    <Modal title={`Shift — ${shift.shift_date} ${shortTime(shift.start_time)}â€“${shortTime(shift.end_time)}`} onClose={onClose} wide>
       <p className="small text-muted mb-2">
         {shift.role_required || 'General'} · {shift.required_employees} required · {shift.duration_hours} h
         {shift.is_overnight ? ' · overnight' : ''} · <StatusBadge value={shift.status} /> <StatusBadge value={shift.coverage_status} />
@@ -186,7 +186,7 @@ function ShiftDetail({ shiftId, onClose, onChanged, employees }) {
         <div className="border rounded p-3 mt-3">
           <Field label="Employee">
             <select className="form-select" value={candidate} onChange={(e) => previewAssign(e.target.value)}>
-              <option value="">Selectâ€¦</option>
+              <option value="">Select…</option>
               {(employees || []).map((e) => (
                 <option key={e.id} value={e.id}>{e.full_name} ({e.employee_number})</option>
               ))}
@@ -201,7 +201,7 @@ function ShiftDetail({ shiftId, onClose, onChanged, employees }) {
                 <div key={w.code} className="alert alert-warning py-1 px-2 mb-1 small" role="alert">{w.message}</div>
               ))}
               {validation.valid && validation.warnings?.length === 0 && (
-                <div className="alert alert-success py-1 px-2 mb-1 small" role="status">No conflicts â€” safe to assign.</div>
+                <div className="alert alert-success py-1 px-2 mb-1 small" role="status">No conflicts — safe to assign.</div>
               )}
             </div>
           )}
@@ -288,7 +288,7 @@ function CreateShiftForm({ date, onDone }) {
       </div>
       <div className="d-flex justify-content-end gap-2">
         <button type="button" className="btn btn-outline-secondary" onClick={onDone}>Close</button>
-        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Savingâ€¦' : 'Create shift'}</button>
+        <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Create shift'}</button>
       </div>
     </form>
   );
@@ -331,7 +331,7 @@ function AutoSchedule({ weekStart, weekEnd, onApplied }) {
       <h2>Automatic scheduling proposal</h2>
       <p className="small text-muted">Deterministic suggestions for this week. Nothing is applied until you confirm below.</p>
       <button type="button" className="btn btn-outline-primary btn-sm" disabled={busy} onClick={run}>
-        {busy ? 'Workingâ€¦' : 'Generate proposal'}
+        {busy ? 'Working…' : 'Generate proposal'}
       </button>
       {result && (
         <div className="mt-3">
@@ -344,7 +344,7 @@ function AutoSchedule({ weekStart, weekEnd, onApplied }) {
                   {result.proposals.map((p, i) => (
                     <tr key={i}>
                       <td>{p.employee_name}</td>
-                      <td className="small">{p.shift_id.slice(0, 8)}â€¦</td>
+                      <td className="small">{p.shift_id.slice(0, 8)}…</td>
                       <td className="small">{(p.reasons || []).join('; ')}</td>
                     </tr>
                   ))}
@@ -445,7 +445,7 @@ export default function Schedule() {
       <div className="d-flex align-items-center gap-2 flex-wrap">
         <div>
           <h1 className="page-title">Schedule</h1>
-          <p className="page-sub">Week of {fmtDate(weekStart)} â€” {fmtDate(weekEnd)}</p>
+          <p className="page-sub">Week of {fmtDate(weekStart)} — {fmtDate(weekEnd)}</p>
         </div>
         <span className="ms-auto" />
         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setWeekStart((w) => addDays(w, -7))}>Previous</button>
@@ -455,7 +455,7 @@ export default function Schedule() {
           <>
             <button type="button" className="btn btn-sm btn-primary" onClick={() => setShowCreate(true)}>New shift</button>
             <button type="button" className="btn btn-sm btn-outline-primary" disabled={publishBusy} onClick={publishDrafts}>
-              {publishBusy ? 'Publishingâ€¦' : 'Publish drafts'}
+              {publishBusy ? 'Publishing…' : 'Publish drafts'}
             </button>
           </>
         )}

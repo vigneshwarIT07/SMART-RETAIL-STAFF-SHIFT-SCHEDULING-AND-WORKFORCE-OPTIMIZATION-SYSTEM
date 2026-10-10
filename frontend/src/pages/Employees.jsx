@@ -271,7 +271,7 @@ export default function Employees() {
             </div>
             <div className="d-flex justify-content-end gap-2">
               <button type="button" className="btn btn-outline-secondary" onClick={() => setShowCreate(false)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Savingâ€¦' : 'Create account'}</button>
+              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Create account'}</button>
             </div>
           </form>
         </Modal>
@@ -318,7 +318,7 @@ export default function Employees() {
             </div>
             <div className="d-flex justify-content-end gap-2">
               <button type="button" className="btn btn-outline-secondary" onClick={() => setEditing(null)}>Cancel</button>
-              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Savingâ€¦' : 'Save changes'}</button>
+              <button type="submit" className="btn btn-primary" disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</button>
             </div>
           </form>
         </Modal>

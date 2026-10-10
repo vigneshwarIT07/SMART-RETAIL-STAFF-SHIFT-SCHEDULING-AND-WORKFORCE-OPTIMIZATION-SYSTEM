@@ -73,7 +73,7 @@ export default function Login() {
             />
           </div>
           <button type="submit" className="btn btn-primary w-100" disabled={busy}>
-            {busy ? 'Signing inâ€¦' : 'Sign in'}
+            {busy ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
         <p className="text-muted small mt-3 mb-0">

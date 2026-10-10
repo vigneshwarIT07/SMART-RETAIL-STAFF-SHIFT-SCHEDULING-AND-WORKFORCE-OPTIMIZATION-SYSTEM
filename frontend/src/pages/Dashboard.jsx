@@ -49,7 +49,7 @@ export default function Dashboard() {
   return (
     <div className="page">
       <h1 className="page-title">Dashboard</h1>
-      <p className="page-sub">Live figures from the store database â€” nothing here is sample data.</p>
+      <p className="page-sub">Live figures from the store database — nothing here is sample data.</p>
       <div className="mt-3">
         <ErrorAlert error={error} onRetry={load} />
         {loading && <Loading />}

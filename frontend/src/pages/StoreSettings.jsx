@@ -91,8 +91,8 @@ export default function StoreSettings() {
             ) : (
               <dl className="row mb-0 small">
                 <dt className="col-sm-3">Name</dt><dd className="col-sm-9">{store.name}</dd>
-                <dt className="col-sm-3">Address</dt><dd className="col-sm-9">{store.address || 'â€”'}</dd>
-                <dt className="col-sm-3">Phone</dt><dd className="col-sm-9">{store.phone || 'â€”'}</dd>
+                <dt className="col-sm-3">Address</dt><dd className="col-sm-9">{store.address || '—'}</dd>
+                <dt className="col-sm-3">Phone</dt><dd className="col-sm-9">{store.phone || '—'}</dd>
                 <dt className="col-sm-3">Timezone</dt><dd className="col-sm-9">{store.timezone || 'UTC'}</dd>
               </dl>
             )}
@@ -117,7 +117,7 @@ export default function StoreSettings() {
               <p className="mb-0 small">
                 API <StatusBadge value={health.database === 'up' ? 'present' : 'absent'} /> database {health.database} ·
                 email <StatusBadge value={health.email_enabled ? 'sent' : 'disabled'} />{' '}
-                {health.email_enabled ? 'configured' : 'not configured â€” notifications stay in-app'}
+                {health.email_enabled ? 'configured' : 'not configured — notifications stay in-app'}
               </p>
             ) : (
               <p className="mb-0 small text-muted">Status unavailable.</p>

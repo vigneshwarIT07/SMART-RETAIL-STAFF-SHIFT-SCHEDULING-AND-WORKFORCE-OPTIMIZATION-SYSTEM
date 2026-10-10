@@ -114,7 +114,7 @@ export default function Swaps() {
                 <div className="col-md-4">
                   <label className="form-label" htmlFor="swap-mine">My shift</label>
                   <select id="swap-mine" className="form-select" required value={form.requester_shift_id} onChange={(e) => setForm({ ...form, requester_shift_id: e.target.value })}>
-                    <option value="">Selectâ€¦</option>
+                    <option value="">Select…</option>
                     {myShifts.map((s) => (
                       <option key={s.id} value={s.id}>{s.shift_date} {String(s.start_time).slice(0, 5)}</option>
                     ))}
@@ -123,7 +123,7 @@ export default function Swaps() {
                 <div className="col-md-4">
                   <label className="form-label" htmlFor="swap-theirs">Their shift</label>
                   <select id="swap-theirs" className="form-select" required value={form.target_shift_id} onChange={(e) => setForm({ ...form, target_shift_id: e.target.value })}>
-                    <option value="">Selectâ€¦</option>
+                    <option value="">Select…</option>
                     {shifts.filter((s) => s.id !== form.requester_shift_id).map((s) => (
                       <option key={s.id} value={s.id}>{s.shift_date} {String(s.start_time).slice(0, 5)} ({(s.assignments || []).map((a) => a.employee_name).join(', ') || 'unassigned'})</option>
                     ))}
@@ -132,7 +132,7 @@ export default function Swaps() {
                 <div className="col-md-4">
                   <label className="form-label" htmlFor="swap-emp">Swap with</label>
                   <select id="swap-emp" className="form-select" required value={form.target_employee_id} onChange={(e) => setForm({ ...form, target_employee_id: e.target.value })}>
-                    <option value="">Selectâ€¦</option>
+                    <option value="">Select…</option>
                     {employees.map((emp) => (
                       <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                     ))}
@@ -146,7 +146,7 @@ export default function Swaps() {
               </div>
               <div className="d-flex gap-2">
                 <button type="submit" className="btn btn-outline-primary btn-sm" disabled={checking || !form.requester_shift_id || !form.target_shift_id || !form.target_employee_id}>
-                  {checking ? 'Checkingâ€¦' : 'Check eligibility'}
+                  {checking ? 'Checking…' : 'Check eligibility'}
                 </button>
                 <button type="button" className="btn btn-primary btn-sm" disabled={!eligibility?.eligible} onClick={handleCreate}>
                   Send swap request
@@ -180,7 +180,7 @@ export default function Swaps() {
                   <tr key={r.id}>
                     <td>{r.requester_name || r.requester_id.slice(0, 8)}</td>
                     <td>{r.target_employee_name || r.target_employee_id.slice(0, 8)}</td>
-                    <td className="small">{r.reason}{r.has_conflict && <span className="d-block text-warning">Conflict flagged â€” needs resolution</span>}</td>
+                    <td className="small">{r.reason}{r.has_conflict && <span className="d-block text-warning">Conflict flagged — needs resolution</span>}</td>
                     <td><StatusBadge value={r.status} /></td>
                     <td className="text-end text-nowrap">
                       {isManager && r.status === 'pending' && (

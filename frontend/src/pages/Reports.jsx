@@ -72,7 +72,7 @@ export default function Reports() {
       <div className="d-flex align-items-center gap-2 flex-wrap">
         <div>
           <h1 className="page-title">Reports</h1>
-          <p className="page-sub">Week of {isoDate(week)} â€” every figure is computed from live records.</p>
+          <p className="page-sub">Week of {isoDate(week)} — every figure is computed from live records.</p>
         </div>
         <span className="ms-auto" />
         <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => setWeek((w) => addDays(w, -7))}>Previous</button>
@@ -164,7 +164,7 @@ export default function Reports() {
               <ul className="mb-0 small">
                 {data.conflicts.map((c, i) => (
                   <li key={i}>
-                    {c.shift_date} â€” {c.employee_name}: {c.message}
+                    {c.shift_date} — {c.employee_name}: {c.message}
                     {c.blocking ? ' (blocking)' : ' (warning)'}
                   </li>
                 ))}
@@ -203,7 +203,7 @@ export default function Reports() {
                   disabled={exporting === e.kind}
                   onClick={() => handleExport(e.kind)}
                 >
-                  {exporting === e.kind ? 'Preparingâ€¦' : e.label}
+                  {exporting === e.kind ? 'Preparing…' : e.label}
                 </button>
               ))}
             </div>
