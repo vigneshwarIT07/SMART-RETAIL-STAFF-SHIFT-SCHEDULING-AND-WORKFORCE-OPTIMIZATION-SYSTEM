@@ -63,6 +63,15 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:5173"
     backend_url: str = "http://localhost:8000"
     extra_cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    cors_origin_regex: str = Field(
+        default="",
+        description=(
+            "Optional regex matched against the request Origin (e.g. "
+            "'https://retail-shift(-[a-z0-9-]+)?\\.vercel\\.app' to cover "
+            "preview deployments of one Vercel project). Empty disables it. "
+            "Kept narrow on purpose: never '.*'."
+        ),
+    )
 
     # --- Bootstrap manager ---------------------------------------------
     manager_email: str = "manager@example.com"
