@@ -156,3 +156,32 @@ def test_api_shift_crud_and_assign_flow(client, manager_headers, employee_user):
         json={"shift_id": shift_id, "employee_id": emp_id},
     )
     assert assigned.status_code in (200, 201), assigned.text
+
+
+def test_api_shift_read_with_assignments(client, manager_headers, employee_user):
+    """Regression: shifts carrying assignments must serialise (read + list)."""
+    payload = make_shift_payload()
+    created = client.post("/api/shifts/", headers=manager_headers, json=payload)
+    assert created.status_code in (200, 201), created.text
+    shift_id = created.json()["data"]["id"]
+    emp_list = client.get("/api/employees/", headers=manager_headers)
+    assert emp_list.status_code == 200, emp_list.text
+    emp_id = emp_list.json()["data"]["items"][0]["id"]
+    assigned = client.post(
+        "/api/shifts/assignments",
+        headers=manager_headers,
+        json={"shift_id": shift_id, "employee_id": emp_id},
+    )
+    assert assigned.status_code in (200, 201), assigned.text
+    # GET one
+    one = client.get(f"/api/shifts/{shift_id}", headers=manager_headers)
+    assert one.status_code == 200, one.text
+    assignments = one.json()["data"]["assignments"]
+    assert len(assignments) == 1
+    for key in ("assigned_by", "cancelled_at", "cancelled_reason"):
+        assert key in assignments[0], f"missing {key} in assignment payload"
+    # GET list (same builder path)
+    listed = client.get("/api/shifts/", headers=manager_headers)
+    assert listed.status_code == 200, listed.text
+    match = [s for s in listed.json()["data"] if s["id"] == shift_id]
+    assert match and len(match[0]["assignments"]) == 1
