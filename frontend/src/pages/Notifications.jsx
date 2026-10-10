@@ -74,7 +74,7 @@ export default function Notifications() {
                     <strong>{n.title}</strong>
                     {!n.is_read && <span className="badge text-bg-primary ms-2">New</span>}
                     {n.body && <p className="mb-1 small">{n.body}</p>}
-                    <small className="text-muted">{fmtDateTime(n.created_at)} Â· {String(n.notification_type || '').replace(/_/g, ' ')}</small>
+                    <small className="text-muted">{fmtDateTime(n.created_at)} · {String(n.notification_type || '').replace(/_/g, ' ')}</small>
                   </div>
                   <span className="ms-auto" />
                   {!n.is_read && (

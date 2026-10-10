@@ -88,8 +88,8 @@ export default function Reports() {
           <div className="panel">
             <h2>Store summary</h2>
             <p className="mb-0 small text-muted">
-              {data.summary.employee_count} active employees Â· {data.summary.total_shifts} shifts Â·{' '}
-              {data.summary.pending_leave} pending leave Â· {data.summary.pending_swaps} pending swaps Â·{' '}
+              {data.summary.employee_count} active employees · {data.summary.total_shifts} shifts ·{' '}
+              {data.summary.pending_leave} pending leave · {data.summary.pending_swaps} pending swaps ·{' '}
               {data.summary.missing_clockouts} missing clock-outs
             </p>
           </div>

@@ -115,7 +115,7 @@ export default function StoreSettings() {
             <h2>Service status</h2>
             {health ? (
               <p className="mb-0 small">
-                API <StatusBadge value={health.database === 'up' ? 'present' : 'absent'} /> database {health.database} Â·
+                API <StatusBadge value={health.database === 'up' ? 'present' : 'absent'} /> database {health.database} ·
                 email <StatusBadge value={health.email_enabled ? 'sent' : 'disabled'} />{' '}
                 {health.email_enabled ? 'configured' : 'not configured â€” notifications stay in-app'}
               </p>

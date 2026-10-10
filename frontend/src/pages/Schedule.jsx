@@ -131,8 +131,8 @@ function ShiftDetail({ shiftId, onClose, onChanged, employees }) {
   return (
     <Modal title={`Shift â€” ${shift.shift_date} ${shortTime(shift.start_time)}â€“${shortTime(shift.end_time)}`} onClose={onClose} wide>
       <p className="small text-muted mb-2">
-        {shift.role_required || 'General'} Â· {shift.required_employees} required Â· {shift.duration_hours} h
-        {shift.is_overnight ? ' Â· overnight' : ''} Â· <StatusBadge value={shift.status} /> <StatusBadge value={shift.coverage_status} />
+        {shift.role_required || 'General'} · {shift.required_employees} required · {shift.duration_hours} h
+        {shift.is_overnight ? ' · overnight' : ''} · <StatusBadge value={shift.status} /> <StatusBadge value={shift.coverage_status} />
       </p>
       {shift.notes && <p className="small">{shift.notes}</p>}
       <h3 className="fs-6 mt-3">Assigned staff ({shift.assigned_count}/{shift.required_employees})</h3>
@@ -492,7 +492,7 @@ export default function Schedule() {
                       <button key={s.id} type="button" className="shift-block" onClick={() => setSelectedShift(s.id)}>
                         <span className="t">{shortTime(s.start_time)}â€“{shortTime(s.end_time)}</span>
                         <br />
-                        {s.role_required || 'General'} Â· {entry.assigned_count}/{s.required_employees}
+                        {s.role_required || 'General'} · {entry.assigned_count}/{s.required_employees}
                         <br />
                         <StatusBadge value={entry.coverage_status} /> <StatusBadge value={s.status} />
                       </button>
