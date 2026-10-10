@@ -46,6 +46,16 @@ export default function Swaps() {
 
   const myShifts = shifts.filter((s) => (s.assignments || []).some((a) => a.employee_id === employeeId && (a.status === 'assigned' || a.status === 'confirmed')));
 
+  // Managers can swap with anyone in the store directory. Employees cannot
+  // list the directory (manager-only endpoint), so their candidates are the
+  // staff assigned to the shift they picked — no extra API access needed.
+  const targetShift = shifts.find((s) => s.id === form.target_shift_id);
+  const swapCandidates = isManager
+    ? employees
+    : (targetShift?.assignments || [])
+      .filter((a) => a.employee_id !== employeeId && (a.status === 'assigned' || a.status === 'confirmed'))
+      .map((a) => ({ id: a.employee_id, full_name: a.employee_name || 'Assigned staff' }));
+
   async function handleCheck(e) {
     e.preventDefault();
     setChecking(true);
@@ -122,7 +132,7 @@ export default function Swaps() {
                 </div>
                 <div className="col-md-4">
                   <label className="form-label" htmlFor="swap-theirs">Their shift</label>
-                  <select id="swap-theirs" className="form-select" required value={form.target_shift_id} onChange={(e) => setForm({ ...form, target_shift_id: e.target.value })}>
+                  <select id="swap-theirs" className="form-select" required value={form.target_shift_id} onChange={(e) => setForm({ ...form, target_shift_id: e.target.value, target_employee_id: '' })}>
                     <option value="">Select…</option>
                     {shifts.filter((s) => s.id !== form.requester_shift_id).map((s) => (
                       <option key={s.id} value={s.id}>{s.shift_date} {String(s.start_time).slice(0, 5)} ({(s.assignments || []).map((a) => a.employee_name).join(', ') || 'unassigned'})</option>
@@ -133,10 +143,13 @@ export default function Swaps() {
                   <label className="form-label" htmlFor="swap-emp">Swap with</label>
                   <select id="swap-emp" className="form-select" required value={form.target_employee_id} onChange={(e) => setForm({ ...form, target_employee_id: e.target.value })}>
                     <option value="">Select…</option>
-                    {employees.map((emp) => (
+                    {swapCandidates.map((emp) => (
                       <option key={emp.id} value={emp.id}>{emp.full_name}</option>
                     ))}
                   </select>
+                  {!isManager && form.target_shift_id && swapCandidates.length === 0 && (
+                    <div className="form-text">The selected shift has no assigned staff to swap with.</div>
+                  )}
                 </div>
               </div>
               <div className="mt-2">
