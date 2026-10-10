@@ -17,6 +17,47 @@ from app.services import shift_service, swap_service
 router = APIRouter(prefix="/swaps", tags=["swaps"])
 
 
+def _person_display(db: Session, employee_id: str) -> tuple[str | None, str | None]:
+    """Return (full_name, employee_number) for an employee id, tolerating gaps."""
+    user = db.get(User, employee_id)
+    employee = db.get(Employee, employee_id)
+    name = user.full_name if user is not None else None
+    number = employee.employee_number if employee is not None else None
+    return name, number
+
+
+def _swap_payload(db: Session, swap: ShiftSwapRequest) -> dict:
+    """Serialise a swap request with human-readable participant names.
+
+    The swaps table only stores participant ids; without enrichment the UI
+    falls back to showing raw UUID prefixes. Names come from the linked
+    user rows (employees share their primary key with ``users.id``).
+    """
+    requester_name, requester_number = _person_display(db, swap.requester_id)
+    target_name, target_number = _person_display(db, swap.target_employee_id)
+    return {
+        "id": swap.id,
+        "requester_id": swap.requester_id,
+        "requester_name": requester_name,
+        "requester_number": requester_number,
+        "target_employee_id": swap.target_employee_id,
+        "target_employee_name": target_name,
+        "target_employee_number": target_number,
+        "requester_shift_id": swap.requester_shift_id,
+        "target_shift_id": swap.target_shift_id,
+        "reason": swap.reason,
+        "status": (swap.status.value if hasattr(swap.status, "value") else str(swap.status)),
+        "has_conflict": swap.has_conflict,
+        "conflict_details": swap.conflict_details,
+        "eligibility": swap.eligibility,
+        "reviewed_by": swap.reviewed_by,
+        "reviewed_at": swap.reviewed_at,
+        "review_note": swap.review_note,
+        "created_at": swap.created_at,
+        "updated_at": swap.updated_at,
+    }
+
+
 def _resolve_swap(db: Session, swap_id: str, user: User) -> ShiftSwapRequest:
     swap = db.get(ShiftSwapRequest, swap_id)
     if swap is None:
@@ -48,7 +89,10 @@ def list_swaps(
         employee_id=scope_employee,
         status=status,
     )
-    return success(data=jsonable_encoder(rows), message="Swap requests")
+    return success(
+        data=jsonable_encoder([_swap_payload(db, row) for row in rows]),
+        message="Swap requests",
+    )
 
 
 @router.post("/check-eligibility")
@@ -106,7 +150,9 @@ def create_swap(
         reason=payload.reason,
     )
     return success(
-        data=jsonable_encoder(swap), message="Swap requested", status_code=201
+        data=jsonable_encoder(_swap_payload(db, swap)),
+        message="Swap requested",
+        status_code=201,
     )
 
 
@@ -118,7 +164,7 @@ def read_swap(
 ) -> dict:
     """Return one swap request."""
     swap = _resolve_swap(db, swap_id, current_user)
-    return success(data=jsonable_encoder(swap), message="Swap request")
+    return success(data=jsonable_encoder(_swap_payload(db, swap)), message="Swap request")
 
 
 @router.post("/{swap_id}/decide")
@@ -139,7 +185,10 @@ def decide_swap(
         decision=payload.decision,
         review_note=payload.review_note,
     )
-    return success(data=jsonable_encoder(swap), message=f"Swap {payload.decision}")
+    return success(
+        data=jsonable_encoder(_swap_payload(db, swap)),
+        message=f"Swap {payload.decision}",
+    )
 
 
 @router.post("/{swap_id}/cancel")
@@ -151,4 +200,7 @@ def cancel_swap(
     """Cancel a pending swap request (involved party or manager)."""
     swap = _resolve_swap(db, swap_id, current_user)
     swap = swap_service.cancel_request(db, swap=swap, cancelled_by=current_user)
-    return success(data=jsonable_encoder(swap), message="Swap request cancelled")
+    return success(
+        data=jsonable_encoder(_swap_payload(db, swap)),
+        message="Swap request cancelled",
+    )

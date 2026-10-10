@@ -38,13 +38,9 @@ def test_clock_in_out_computes_minutes(db, store, manager, employee_user):
     from app.services import assignment_service
 
     assignment_service.assign_employee(db, shift, emp, assigned_by=manager)
-    rec = attendance_service.clock_in(
-        db, shift=shift, employee=emp, recorded_by=manager
-    )
+    rec = attendance_service.clock_in(db, shift=shift, employee=emp, recorded_by=manager)
     assert rec["attendance"] is not None
-    out = attendance_service.clock_out(
-        db, shift=shift, employee=emp, recorded_by=manager
-    )
+    out = attendance_service.clock_out(db, shift=shift, employee=emp, recorded_by=manager)
     assert out is not None
 
 
@@ -76,9 +72,7 @@ def test_missing_clockouts_queue(db, store, manager, employee_user):
         recorded_by=manager,
         at=datetime.now(UTC) - timedelta(hours=5),
     )
-    rows = attendance_service.missing_clockouts(
-        db, store_id=store.id, older_than_minutes=1
-    )
+    rows = attendance_service.missing_clockouts(db, store_id=store.id, older_than_minutes=1)
     assert isinstance(rows, list)
 
 
@@ -110,9 +104,7 @@ def test_correction_requires_reason_and_audit(db, store, manager, employee_user)
     assert corrected.was_corrected is True or corrected.correction_reason is not None
 
 
-def test_leave_conflict_flag_and_decision_cancels_assignments(
-    db, store, manager, employee_user
-):
+def test_leave_conflict_flag_and_decision_cancels_assignments(db, store, manager, employee_user):
     from app.services import assignment_service
 
     emp = db.query(Employee).filter_by(id=employee_user.id).one()
@@ -176,20 +168,59 @@ def test_dashboard_metrics_and_csv(db, store, manager, employee_user):
     assert payload is not None
 
 
+def test_api_swap_list_includes_participant_names(
+    client, manager_headers, employee_headers, employee_user, employee2_user
+):
+    """Swap payloads must carry human-readable names, not bare UUIDs."""
+    from tests.conftest import auth_headers, make_shift_payload
+
+    bob_headers = auth_headers(client, "bob@example.com")
+    s1 = client.post("/api/shifts/", headers=manager_headers, json=make_shift_payload()).json()[
+        "data"
+    ]
+    payload2 = make_shift_payload()
+    payload2["start_time"] = "14:00"
+    payload2["end_time"] = "18:00"
+    s2 = client.post("/api/shifts/", headers=manager_headers, json=payload2).json()["data"]
+    for shift, emp in ((s1, employee_user), (s2, employee2_user)):
+        r = client.post(
+            "/api/shifts/assignments",
+            headers=manager_headers,
+            json={"shift_id": shift["id"], "employee_id": emp.id},
+        )
+        assert r.status_code in (200, 201), r.text
+    created = client.post(
+        "/api/swaps",
+        headers=employee_headers,
+        json={
+            "target_employee_id": employee2_user.id,
+            "requester_shift_id": s1["id"],
+            "target_shift_id": s2["id"],
+            "reason": "prefer evening hours please",
+        },
+    )
+    assert created.status_code in (200, 201), created.text
+    body = client.get("/api/swaps", headers=manager_headers).json()["data"]
+    assert len(body) >= 1
+    row = body[0]
+    assert row["requester_name"] == "Alice Staff"
+    assert row["target_employee_name"] == "Bob Staff"
+    assert row["requester_number"] == "EMP-0001"
+    assert row["target_employee_number"] == "EMP-0002"
+    one = client.get(f"/api/swaps/{row['id']}", headers=bob_headers).json()["data"]
+    assert one["requester_name"] == "Alice Staff"
+
+
 def test_api_attendance_leave_swap_roundtrip(
     client, manager_headers, employee_headers, employee_user
 ):
     # manager creates shift + assigns alice
     from tests.conftest import make_shift_payload
 
-    created = client.post(
-        "/api/shifts/", headers=manager_headers, json=make_shift_payload()
-    )
+    created = client.post("/api/shifts/", headers=manager_headers, json=make_shift_payload())
     assert created.status_code in (200, 201), created.text
     shift_id = created.json()["data"]["id"]
-    emps = client.get("/api/employees/", headers=manager_headers).json()["data"][
-        "items"
-    ]
+    emps = client.get("/api/employees/", headers=manager_headers).json()["data"]["items"]
     alice = next(e for e in emps if e["email"] == "alice@example.com")
     a = client.post(
         "/api/shifts/assignments",
