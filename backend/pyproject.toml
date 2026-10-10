@@ -1,3 +1,24 @@
+[project]
+# Runtime dependencies for the deployed API. Vercel's Python runtime builds
+# with `uv lock`, which requires this table — keep it in sync with
+# requirements.txt (the local-dev / CI install source).
+name = "retail-shift-scheduling-backend"
+version = "1.0.0"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "python-multipart==0.0.20",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.0",
+    "email-validator==2.2.0",
+    "SQLAlchemy==2.0.36",
+    "alembic==1.14.0",
+    "psycopg[binary]==3.3.6",
+    "PyJWT==2.14.0",
+    "bcrypt==5.0.0",
+]
+
 [tool.ruff]
 target-version = "py311"
 
