@@ -18,14 +18,19 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models import (
     AssignmentStatus,
+    AvailabilityType,
     CoverageStatus,
     Employee,
+    LeaveRequest,
+    LeaveStatus,
     Shift,
     ShiftAssignment,
     ShiftStatus,
 )
+from app.models.attendance import Availability
+from app.models.user import Store, User
 
-from . import assignment_service
+from . import assignment_service, shift_service
 
 
 def coverage_status(shift: Shift, active_count: int) -> CoverageStatus:
@@ -112,14 +117,10 @@ def weekly_hours_report(
     """
     week_start = week_start - timedelta(days=week_start.weekday())
     threshold = (
-        overtime_threshold
-        if overtime_threshold is not None
-        else settings.overtime_warning_hours
+        overtime_threshold if overtime_threshold is not None else settings.overtime_warning_hours
     )
     employees = db.scalars(
-        select(Employee).where(
-            Employee.store_id == store_id, Employee.status == "ACTIVE"
-        )
+        select(Employee).where(Employee.store_id == store_id, Employee.status == "ACTIVE")
     ).all()
     rows: list[dict] = []
     for employee in employees:
@@ -188,6 +189,13 @@ def conflict_list(
     Re-runs :func:`assignment_service.validate_assignment` for every active
     assignment so managers see conflicts introduced by later edits (leave
     approvals, shift time changes) in one place.
+
+    Performance: validation is rule-identical to the single-shot path, but
+    every row it needs is preloaded here in a handful of queries and handed
+    over as a snapshot (``ctx``).  Without this, each assignment costs ~10
+    roundtrips (plus one per neighbouring shift for timezone intervals),
+    which stalls past a minute on hosted Postgres once a week holds a few
+    dozen assignments.
     """
     stmt = (
         select(Shift, ShiftAssignment, Employee)
@@ -197,22 +205,92 @@ def conflict_list(
             Shift.store_id == store_id,
             Shift.shift_date >= start_date,
             Shift.shift_date <= end_date,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
         )
         .order_by(Shift.shift_date, Shift.start_time)
     )
+    window_rows = db.execute(stmt).all()
+    if not window_rows:
+        return []
+
+    employee_ids = sorted({employee.id for _, _, employee in window_rows})
+    store = db.scalar(select(Store).where(Store.id == store_id))
+    if store is None:  # pragma: no cover - window rows imply the store exists
+        from app.core.errors import NotFoundError
+
+        raise NotFoundError(f"Store {store_id} not found.")
+
+    # Every active assignment of the involved employees (any date): one query.
+    # Non-cancelled shifts only, mirroring each rule's own filters.
+    all_stmt = (
+        select(Shift, ShiftAssignment)
+        .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
+        .where(
+            ShiftAssignment.employee_id.in_(employee_ids),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
+            Shift.status != ShiftStatus.CANCELLED,
+        )
+        .order_by(Shift.shift_date, Shift.start_time)
+    )
+    emp_shifts: dict[str, list] = {eid: [] for eid in employee_ids}
+    worked_dates: dict[str, set[date]] = {eid: set() for eid in employee_ids}
+    week_hours: dict[tuple[str, date], Decimal] = {}
+    intervals: dict[str, tuple] = {}
+    for other_shift, link in db.execute(all_stmt):
+        start, end = shift_service.shift_interval(store, other_shift)
+        intervals.setdefault(other_shift.id, (start, end))
+        emp_shifts[link.employee_id].append((other_shift, start, end))
+        worked_dates[link.employee_id].add(other_shift.shift_date)
+        monday = other_shift.shift_date - timedelta(days=other_shift.shift_date.weekday())
+        key = (link.employee_id, monday)
+        week_hours[key] = week_hours.get(key, Decimal("0")) + Decimal(
+            str(other_shift.duration_hours)
+        )
+    # Intervals for window shifts even when they carry no active assignment.
+    for shift, _, _ in window_rows:
+        intervals.setdefault(shift.id, shift_service.shift_interval(store, shift))
+
+    unavailable: dict[str, list] = {eid: [] for eid in employee_ids}
+    for row in db.scalars(
+        select(Availability).where(
+            Availability.employee_id.in_(employee_ids),
+            Availability.availability_type == AvailabilityType.UNAVAILABLE,
+        )
+    ).all():
+        unavailable[row.employee_id].append(row)
+
+    leave: dict[str, list] = {eid: [] for eid in employee_ids}
+    for row in db.scalars(
+        select(LeaveRequest).where(
+            LeaveRequest.employee_id.in_(employee_ids),
+            LeaveRequest.status == LeaveStatus.APPROVED,
+        )
+    ).all():
+        leave[row.employee_id].append(row)
+
+    names = {employee.id: employee.employee_number or employee.id for _, _, employee in window_rows}
+    for user in db.scalars(select(User).where(User.id.in_(employee_ids))).all():
+        if user.full_name:
+            names[user.id] = user.full_name
+
+    ctx = {
+        "intervals": intervals,
+        "emp_shifts": emp_shifts,
+        "unavailable": unavailable,
+        "leave": leave,
+        "week_hours": week_hours,
+        "worked_dates": worked_dates,
+    }
     conflicts: list[dict] = []
-    for shift, _link, employee in db.execute(stmt):
-        result = assignment_service.validate_assignment(db, shift, employee)
+    for shift, _link, employee in window_rows:
+        result = assignment_service.validate_assignment(db, shift, employee, ctx=ctx)
         for issue in result["violations"] + result["warnings"]:
             conflicts.append(
                 {
                     "shift_id": shift.id,
                     "shift_date": shift.shift_date,
                     "employee_id": employee.id,
-                    "employee_name": _display_name(db, employee),
+                    "employee_name": names.get(employee.id),
                     "code": issue["code"],
                     "message": issue["message"],
                     "blocking": issue["blocking"],

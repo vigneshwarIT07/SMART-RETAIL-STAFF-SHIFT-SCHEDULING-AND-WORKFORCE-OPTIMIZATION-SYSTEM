@@ -87,9 +87,7 @@ def weekly_hours(
         .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
         .where(
             ShiftAssignment.employee_id == employee_id,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
             Shift.shift_date >= week_start,
             Shift.shift_date < week_end,
             Shift.status != ShiftStatus.CANCELLED,
@@ -113,9 +111,7 @@ def consecutive_work_days(
         .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
         .where(
             ShiftAssignment.employee_id == employee_id,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
             Shift.shift_date <= anchor,
             Shift.shift_date >= anchor - timedelta(days=30),
             Shift.status != ShiftStatus.CANCELLED,
@@ -155,12 +151,22 @@ def validate_assignment(
     max_weekly_hours: int | None = None,
     min_rest_hours: int | None = None,
     max_consecutive_days: int | None = None,
+    ctx: dict | None = None,
 ) -> dict:
     """Validate assigning ``employee`` to ``shift``.
 
     Returns ``{"valid", "violations", "warnings"}`` where each issue is a
     ``{"code", "message", "blocking"}`` mapping.  ``valid`` is True when no
     *blocking* violation exists, or when ``force`` is set.
+
+    ``ctx`` is an optional preloaded snapshot (built by
+    :func:`scheduling_service.conflict_list`) holding intervals, assignments,
+    availability rows, leave rows, weekly-hour totals and worked-date sets in
+    plain dicts.  When supplied, every rule reads from the snapshot instead
+    of issuing its own queries — identical semantics, O(1) roundtrips.  When
+    ``None`` each rule queries exactly as before, so all existing single-shot
+    callers (assign dialog, eligibility ranking, auto-scheduler) are
+    unaffected.
     """
     violations: list[dict] = []
     warnings: list[dict] = []
@@ -188,37 +194,59 @@ def validate_assignment(
         )
 
     # Rule 3 — no overlapping active assignment (UTC comparison).
-    new_start, new_end = _interval(db, shift)
-    overlap_stmt = (
-        select(Shift, ShiftAssignment)
-        .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
-        .where(
-            ShiftAssignment.employee_id == employee.id,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
-            Shift.id != shift.id,
-            Shift.status != ShiftStatus.CANCELLED,
-        )
-    )
-    for other, _link in db.execute(overlap_stmt):
-        other_start, other_end = _interval(db, other)
-        if new_start < other_end and other_start < new_end:
-            add(
-                "overlap",
-                f"Overlaps {other.shift_date} "
-                f"{other.start_time.strftime('%H:%M')}-{other.end_time.strftime('%H:%M')}.",
+    intervals = (ctx or {}).get("intervals") or {}
+    if shift.id in intervals:
+        new_start, new_end = intervals[shift.id]
+    else:
+        new_start, new_end = _interval(db, shift)
+    emp_shifts = (ctx or {}).get("emp_shifts") or {}
+    if employee.id in emp_shifts:
+        for other, other_start, other_end in emp_shifts[employee.id]:
+            if other.id == shift.id:
+                continue
+            if new_start < other_end and other_start < new_end:
+                add(
+                    "overlap",
+                    f"Overlaps {other.shift_date} "
+                    f"{other.start_time.strftime('%H:%M')}-{other.end_time.strftime('%H:%M')}.",
+                )
+                break
+    else:
+        overlap_stmt = (
+            select(Shift, ShiftAssignment)
+            .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
+            .where(
+                ShiftAssignment.employee_id == employee.id,
+                ShiftAssignment.status.notin_(
+                    [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
+                ),
+                Shift.id != shift.id,
+                Shift.status != ShiftStatus.CANCELLED,
             )
-            break
+        )
+        for other, _link in db.execute(overlap_stmt):
+            other_start, other_end = _interval(db, other)
+            if new_start < other_end and other_start < new_end:
+                add(
+                    "overlap",
+                    f"Overlaps {other.shift_date} "
+                    f"{other.start_time.strftime('%H:%M')}-{other.end_time.strftime('%H:%M')}.",
+                )
+                break
 
     # Rule 4 — availability must not mark the window unavailable.
     weekday = shift.shift_date.weekday()
-    avail_stmt = select(Availability).where(
-        Availability.employee_id == employee.id,
-        Availability.weekday == weekday,
-        Availability.availability_type == AvailabilityType.UNAVAILABLE,
-    )
-    for row in db.scalars(avail_stmt).all():
+    unavailable_rows = (ctx or {}).get("unavailable") or {}
+    if employee.id in unavailable_rows:
+        avail_iter = [row for row in unavailable_rows[employee.id] if row.weekday == weekday]
+    else:
+        avail_stmt = select(Availability).where(
+            Availability.employee_id == employee.id,
+            Availability.weekday == weekday,
+            Availability.availability_type == AvailabilityType.UNAVAILABLE,
+        )
+        avail_iter = db.scalars(avail_stmt).all()
+    for row in avail_iter:
         if not row.effective_from or row.effective_from <= shift.shift_date:
             if not row.effective_to or row.effective_to >= shift.shift_date:
                 # UNAVAILABLE rows: covers() reports overlap with the shift
@@ -231,13 +259,20 @@ def validate_assignment(
                     break
 
     # Rule 5 — approved leave conflict.
-    leave_stmt = select(LeaveRequest).where(
-        LeaveRequest.employee_id == employee.id,
-        LeaveRequest.status == LeaveStatus.APPROVED,
-        LeaveRequest.start_date <= shift.shift_date,
-        LeaveRequest.end_date >= shift.shift_date,
-    )
-    if db.scalars(leave_stmt).first() is not None:
+    leave_rows = (ctx or {}).get("leave") or {}
+    if employee.id in leave_rows:
+        on_leave = any(
+            row.start_date <= shift.shift_date <= row.end_date for row in leave_rows[employee.id]
+        )
+    else:
+        leave_stmt = select(LeaveRequest).where(
+            LeaveRequest.employee_id == employee.id,
+            LeaveRequest.status == LeaveStatus.APPROVED,
+            LeaveRequest.start_date <= shift.shift_date,
+            LeaveRequest.end_date >= shift.shift_date,
+        )
+        on_leave = db.scalars(leave_stmt).first() is not None
+    if on_leave:
         add("on-leave", "Employee has approved leave covering this date.")
 
     # Rule 6 — skill match (warning; managers may train into a role).
@@ -248,13 +283,14 @@ def validate_assignment(
         )
 
     # Rule 7 — weekly hours cap (warning; overtime is allowed but flagged).
-    cap = (
-        max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
-    )
+    cap = max_weekly_hours if max_weekly_hours is not None else settings.max_weekly_hours
     week_start = shift.shift_date - timedelta(days=shift.shift_date.weekday())
-    projected = weekly_hours(db, employee.id, week_start) + Decimal(
-        str(shift.duration_hours)
-    )
+    week_hours = (ctx or {}).get("week_hours") or {}
+    if (employee.id, week_start) in week_hours:
+        scheduled = week_hours[(employee.id, week_start)]
+    else:
+        scheduled = weekly_hours(db, employee.id, week_start)
+    projected = scheduled + Decimal(str(shift.duration_hours))
     if projected > cap:
         add(
             "weekly-hours",
@@ -263,26 +299,34 @@ def validate_assignment(
 
     # Rule 8 — minimum rest between adjacent shifts (warning).
     rest_floor = (
-        min_rest_hours
-        if min_rest_hours is not None
-        else settings.min_rest_hours_between_shifts
+        min_rest_hours if min_rest_hours is not None else settings.min_rest_hours_between_shifts
     )
     adjacent_stmt = (
         select(Shift)
         .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
         .where(
             ShiftAssignment.employee_id == employee.id,
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            ),
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
             Shift.id != shift.id,
             Shift.status != ShiftStatus.CANCELLED,
             Shift.shift_date >= shift.shift_date - timedelta(days=2),
             Shift.shift_date <= shift.shift_date + timedelta(days=2),
         )
     )
-    for other in db.scalars(adjacent_stmt).all():
-        other_start, other_end = _interval(db, other)
+    if employee.id in emp_shifts:
+        adjacent_iter = [
+            (other, other_start, other_end)
+            for other, other_start, other_end in emp_shifts[employee.id]
+            if other.id != shift.id
+            and shift.shift_date - timedelta(days=2)
+            <= other.shift_date
+            <= shift.shift_date + timedelta(days=2)
+        ]
+    else:
+        adjacent_iter = [
+            (other, *_interval(db, other)) for other in db.scalars(adjacent_stmt).all()
+        ]
+    for _other, other_start, other_end in adjacent_iter:
         gap = (
             (new_start - other_end).total_seconds() / 3600
             if new_start >= other_end
@@ -301,9 +345,16 @@ def validate_assignment(
         if max_consecutive_days is not None
         else settings.max_consecutive_work_days
     )
-    streak = consecutive_work_days(
-        db, employee.id, shift.shift_date - timedelta(days=1)
-    )
+    worked_dates = (ctx or {}).get("worked_dates") or {}
+    if employee.id in worked_dates:
+        worked = worked_dates[employee.id]
+        streak = 0
+        cursor = shift.shift_date - timedelta(days=1)
+        while cursor in worked:
+            streak += 1
+            cursor -= timedelta(days=1)
+    else:
+        streak = consecutive_work_days(db, employee.id, shift.shift_date - timedelta(days=1))
     if streak + 1 > day_cap:
         add(
             "consecutive-days",
@@ -455,9 +506,7 @@ def list_assignments_for_employee(
     conditions = [ShiftAssignment.employee_id == employee_id]
     if not include_cancelled:
         conditions.append(
-            ShiftAssignment.status.notin_(
-                [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-            )
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW])
         )
     stmt = select(ShiftAssignment).where(and_(*conditions))
     if start is not None or end is not None:
@@ -484,9 +533,7 @@ def active_assignment_count(db: Session, shift_id: str) -> int:
 
     stmt = select(func.count()).where(
         ShiftAssignment.shift_id == shift_id,
-        ShiftAssignment.status.notin_(
-            [AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]
-        ),
+        ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
     )
     return int(db.scalar(stmt) or 0)
 

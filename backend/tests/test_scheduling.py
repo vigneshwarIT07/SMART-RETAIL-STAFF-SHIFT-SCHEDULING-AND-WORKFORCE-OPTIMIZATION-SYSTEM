@@ -108,13 +108,9 @@ def test_coverage_statuses(db, store, manager, employee_user):
     assert status2.value == "understaffed"
 
 
-def test_auto_schedule_requires_confirmation(
-    db, store, manager, employee_user, employee2_user
-):
+def test_auto_schedule_requires_confirmation(db, store, manager, employee_user, employee2_user):
     _shift(db, store, created_by=_mgr_id(db, store), start="09:00", end="13:00")
-    second_id = _shift(
-        db, store, created_by=_mgr_id(db, store), start="14:00", end="18:00"
-    ).id
+    second_id = _shift(db, store, created_by=_mgr_id(db, store), start="14:00", end="18:00").id
     result = auto_schedule_service.generate_proposal(
         db,
         store_id=store.id,
@@ -185,3 +181,77 @@ def test_api_shift_read_with_assignments(client, manager_headers, employee_user)
     assert listed.status_code == 200, listed.text
     match = [s for s in listed.json()["data"] if s["id"] == shift_id]
     assert match and len(match[0]["assignments"]) == 1
+
+
+def test_conflict_list_matches_single_validation(db, store, manager, employee_user, employee2_user):
+    """conflict_list (snapshot path) must equal per-assignment validation."""
+    from sqlalchemy import select as _select
+
+    from app.models import ShiftAssignment
+    from app.models.attendance import Availability
+    from app.models.enums import (
+        AssignmentStatus,
+        AvailabilityType,
+        LeaveStatus,
+        LeaveType,
+    )
+    from app.models.request import LeaveRequest
+
+    emp1 = db.query(Employee).filter_by(id=employee_user.id).one()
+    emp2 = db.query(Employee).filter_by(id=employee2_user.id).one()
+    monday = date.today() + timedelta(days=(7 - date.today().weekday()))
+    tuesday = monday + timedelta(days=1)
+    cb = _mgr_id(db, store)
+    s1 = _shift(db, store, day=monday, start="09:00", end="13:00", created_by=cb)
+    s2 = _shift(db, store, day=monday, start="12:00", end="16:00", created_by=cb)
+    s3 = _shift(db, store, day=tuesday, start="09:00", end="13:00", created_by=cb)
+    assignment_service.assign_employee(db, s1, emp1, assigned_by=manager)
+    assignment_service.assign_employee(db, s2, emp1, assigned_by=manager, force=True)
+    assignment_service.assign_employee(db, s3, emp2, assigned_by=manager)
+    db.add(
+        Availability(
+            employee_id=emp2.id,
+            weekday=tuesday.weekday(),
+            start_time=time.fromisoformat("08:00"),
+            end_time=time.fromisoformat("14:00"),
+            availability_type=AvailabilityType.UNAVAILABLE,
+        )
+    )
+    db.add(
+        LeaveRequest(
+            employee_id=emp2.id,
+            leave_type=LeaveType.ANNUAL,
+            start_date=tuesday,
+            end_date=tuesday,
+            status=LeaveStatus.APPROVED,
+        )
+    )
+    db.flush()
+
+    rows = scheduling_service.conflict_list(
+        db, store_id=store.id, start_date=monday, end_date=tuesday
+    )
+    # Independent validation without the snapshot — must agree exactly.
+    stmt = (
+        _select(Shift, ShiftAssignment, Employee)
+        .join(ShiftAssignment, ShiftAssignment.shift_id == Shift.id)
+        .join(Employee, Employee.id == ShiftAssignment.employee_id)
+        .where(
+            Shift.store_id == store.id,
+            Shift.shift_date >= monday,
+            Shift.shift_date <= tuesday,
+            ShiftAssignment.status.notin_([AssignmentStatus.CANCELLED, AssignmentStatus.NO_SHOW]),
+        )
+    )
+    expected = []
+    for sh, _link, emp in db.execute(stmt):
+        res = assignment_service.validate_assignment(db, sh, emp)
+        for issue in res["violations"] + res["warnings"]:
+            expected.append((sh.id, emp.id, issue["code"], issue["message"], issue["blocking"]))
+    got = [(c["shift_id"], c["employee_id"], c["code"], c["message"], c["blocking"]) for c in rows]
+    assert sorted(got) == sorted(expected)
+    codes = {c["code"] for c in rows}
+    assert "overlap" in codes  # forced double-booking on emp1
+    assert "on-leave" in codes  # approved leave over emp2's shift
+    assert "unavailable" in codes  # unavailable row over emp2's shift
+    assert all(isinstance(c["employee_name"], str) and c["employee_name"] for c in rows)
