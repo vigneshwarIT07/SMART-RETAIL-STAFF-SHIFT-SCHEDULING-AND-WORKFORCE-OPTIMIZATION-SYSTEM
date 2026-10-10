@@ -77,7 +77,7 @@ export default function Login() {
           </button>
         </form>
         <p className="text-muted small mt-3 mb-0">
-          No account? Accounts are created by your store manager â€” please contact them.
+          No account? Accounts are created by your store manager — please contact them.
           <br />
           <Link to="/store-info">About this store app</Link>
         </p>

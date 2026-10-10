@@ -27,7 +27,7 @@ export function StoreInfo() {
         <h1 className="fs-5 fw-bold">Shift Scheduler</h1>
         <p className="small text-muted">
           Rota planning, attendance, leave and shift swaps for a single retail store.
-          Accounts are provisioned by the store manager â€” there is no public sign-up.
+          Accounts are provisioned by the store manager — there is no public sign-up.
         </p>
         <Link to="/login" className="btn btn-primary btn-sm">Back to sign in</Link>
       </div>
